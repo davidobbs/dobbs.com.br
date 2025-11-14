@@ -245,7 +245,7 @@ export function HudGlow({
   return (
     <div
       className={cn(
-        'absolute rounded-full blur-3xl opacity-20 animate-glow pointer-events-none',
+        'absolute rounded-full blur-3xl opacity-20 pointer-events-none',
         sizeClasses[size],
         colorClasses[color],
         positionClasses[position],

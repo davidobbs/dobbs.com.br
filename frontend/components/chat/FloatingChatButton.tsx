@@ -1,24 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Bot, X, Minimize2 } from 'lucide-react';
+import { Bot, X } from 'lucide-react';
 import { ChatAssistant } from './ChatAssistant';
 
 export function FloatingChatButton() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
 
   const toggleChat = () => {
     setIsOpen(!isOpen);
-    setIsMinimized(false);
-  };
-
-  const minimizeChat = () => {
-    setIsMinimized(true);
-  };
-
-  const restoreChat = () => {
-    setIsMinimized(false);
   };
 
   return (
@@ -50,53 +40,28 @@ export function FloatingChatButton() {
                   <p className="text-xs text-neutral-400">Especializado em engenharia de software e IA aplicada</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {!isMinimized && (
-                  <button
-                    onClick={minimizeChat}
-                    className="p-2 text-neutral-400 hover:text-accent-500 transition-colors rounded-lg hover:bg-neutral-800/50"
-                    aria-label="Minimizar chat"
-                  >
-                    <Minimize2 className="w-4 h-4" />
-                  </button>
-                )}
-                <button
-                  onClick={toggleChat}
-                  className="p-2 text-neutral-400 hover:text-accent-500 transition-colors rounded-lg hover:bg-neutral-800/50"
-                  aria-label="Fechar chat"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                onClick={toggleChat}
+                className="p-2 text-neutral-400 hover:text-accent-500 transition-colors rounded-lg hover:bg-neutral-800/50"
+                aria-label="Fechar chat"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Conteúdo do Chat */}
-            {!isMinimized ? (
-              <div className="flex-1 overflow-hidden">
-                <ChatAssistant className="h-full" />
-              </div>
-            ) : (
-              <button
-                onClick={restoreChat}
-                className="p-4 bg-gradient-to-r from-primary-100 to-primary-50/50 border-t border-accent-500/20 flex items-center justify-between hover:bg-primary-100/70 transition-colors flex-shrink-0"
-                aria-label="Restaurar chat"
-              >
-                <div className="flex items-center gap-3">
-                  <Bot className="w-5 h-5 text-accent-500" />
-                  <span className="text-sm font-medium text-neutral-200">Assistente de IA</span>
-                </div>
-                <span className="text-xs text-neutral-400">Clique para expandir</span>
-              </button>
-            )}
+            <div className="flex-1 overflow-hidden">
+              <ChatAssistant className="h-full" />
+            </div>
           </div>
         </div>
       )}
 
-      {/* Overlay (opcional - para fechar ao clicar fora) */}
-      {isOpen && !isMinimized && (
+      {/* Overlay (para fechar ao clicar fora) */}
+      {isOpen && (
         <div
           className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
-          onClick={minimizeChat}
+          onClick={toggleChat}
           aria-hidden="true"
         />
       )}

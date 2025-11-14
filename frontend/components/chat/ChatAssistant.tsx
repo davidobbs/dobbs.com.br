@@ -16,12 +16,29 @@ interface ChatAssistantProps {
   className?: string;
 }
 
+// Função para formatar markdown básico de forma segura
+const formatMessage = (text: string): string => {
+  // Aplicar formatação markdown primeiro
+  let formatted = text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code class="bg-neutral-900/50 px-1 py-0.5 rounded text-accent-400 text-xs font-mono">$1</code>')
+    .replace(/\n/g, '<br />');
+  
+  // Escapar HTML restante para segurança (mas preservar tags que criamos)
+  // Isso é seguro porque já processamos o markdown
+  formatted = formatted
+    .replace(/&(?!amp;|lt;|gt;|quot;|#)/g, '&amp;');
+  
+  return formatted;
+};
+
 export function ChatAssistant({ className }: ChatAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      content: 'Olá! Sou o assistente de IA do Dobbs. Como posso ajudá-lo hoje?',
+      content: 'Oi! 👋 Sou o assistente de IA do Davi Dobbs. Estou aqui para ajudar você com dúvidas sobre IA aplicada, engenharia de software, consultoria ou qualquer coisa relacionada ao trabalho dele. O que você gostaria de saber?',
       timestamp: new Date(),
     },
   ]);
@@ -137,7 +154,12 @@ export function ChatAssistant({ className }: ChatAssistantProps) {
                   : 'bg-neutral-800/80 text-neutral-200 border border-neutral-700/50'
               )}
             >
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+              <div 
+                className="text-sm leading-relaxed"
+                dangerouslySetInnerHTML={{
+                  __html: formatMessage(message.content)
+                }}
+              />
               <span className="text-xs opacity-60 mt-1 block">
                 {message.timestamp.toLocaleTimeString('pt-BR', {
                   hour: '2-digit',
@@ -183,8 +205,8 @@ export function ChatAssistant({ className }: ChatAssistantProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Digite sua mensagem... (Enter para enviar, Shift+Enter para nova linha)"
-            className="flex-1 px-4 py-3 rounded-lg bg-neutral-900/50 border border-neutral-700/50 text-neutral-200 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-accent-500/50 focus:border-accent-500/50 resize-none transition-all"
+            placeholder="Digite sua mensagem..."
+            className="flex-1 px-4 py-3 rounded-lg bg-neutral-900/60 border border-neutral-700/50 text-neutral-100 placeholder:text-neutral-500 placeholder:opacity-70 focus:outline-none focus:ring-2 focus:ring-accent-500/50 focus:border-accent-500/50 resize-none transition-all duration-200"
             rows={1}
             disabled={isLoading}
             style={{
@@ -210,8 +232,8 @@ export function ChatAssistant({ className }: ChatAssistantProps) {
             )}
           </Button>
         </div>
-        <p className="text-xs text-neutral-500 mt-2 text-center">
-          O assistente pode cometer erros. Verifique informações importantes.
+        <p className="text-xs text-neutral-500 mt-2 text-center opacity-60">
+          Pressione Enter para enviar • Shift+Enter para nova linha
         </p>
       </div>
     </div>

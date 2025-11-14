@@ -1,7 +1,7 @@
 import { Section } from '@/components/ui/Section';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { HudBorder, HudCorner, HudGrid, HudGlow } from '@/components/ui/HudEffects';
+import { HudBorder, HudCorner, HudGrid } from '@/components/ui/HudEffects';
 import { Calendar, Clock, ArrowRight, Search, BookOpen, Sparkles } from 'lucide-react';
 import { formatDateShort } from '@/lib/utils';
 
@@ -74,7 +74,6 @@ export default function BlogPage() {
       {/* Hero Section with HUD */}
       <section className="relative min-h-[50vh] flex items-center overflow-hidden bg-primary-50">
         <HudGrid density="sparse" />
-        <HudGlow color="accent" size="lg" position="top" />
         
         <div className="container-custom relative z-10 py-24">
           <div className="max-w-3xl">

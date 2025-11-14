@@ -11,8 +11,8 @@ export function Hero() {
       <div className="absolute inset-0 bg-grid-pattern-dense bg-grid-dense opacity-30" />
       
       {/* Accent Glow */}
-      <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-accent-500/10 rounded-full blur-3xl animate-glow" />
-      <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-accent-500/5 rounded-full blur-3xl animate-glow" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-accent-500/10 rounded-full blur-3xl" />
+      <div className="absolute bottom-1/4 left-1/4 w-96 h-96 bg-accent-500/5 rounded-full blur-3xl" />
 
       <div className="container-custom relative z-10 py-24 md:py-32">
         <div className="max-w-4xl mx-auto text-center">

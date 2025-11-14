@@ -1,7 +1,7 @@
 import { Section } from '@/components/ui/Section';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { HudBorder, HudCorner, HudGrid, HudGlow } from '@/components/ui/HudEffects';
+import { HudBorder, HudCorner, HudGrid } from '@/components/ui/HudEffects';
 import {
   Code,
   Brain,
@@ -126,7 +126,6 @@ export default function AboutPage() {
       {/* Hero Section with HUD */}
       <section className="relative min-h-[60vh] flex items-center overflow-hidden bg-primary-50">
         <HudGrid density="sparse" />
-        <HudGlow color="accent" size="lg" position="top" />
         
         <div className="container-custom relative z-10 py-24">
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 items-center">
@@ -324,17 +323,25 @@ export default function AboutPage() {
       </Section>
 
       {/* CTA Section */}
-      <Section className="relative bg-primary-50/50">
+      <Section className="relative bg-primary-50">
         <HudGrid density="sparse" />
         <div className="text-center relative z-10">
+          <div className="inline-flex items-center gap-2 bg-accent-500/10 border border-accent-500/30 text-accent-500 px-4 py-2 rounded-full text-xs font-medium mb-6 backdrop-blur-sm">
+            <Sparkles size={14} />
+            <span className="uppercase tracking-wider">Pronto para Começar?</span>
+          </div>
           <h3 className="text-3xl md:text-4xl font-display font-bold text-neutral-100 mb-4 tracking-tight">
-            Pronto para aprender a usar IA corretamente?
+            Pronto para aprender a usar{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-400 via-accent-500 to-accent-600">
+              IA corretamente
+            </span>
+            ?
           </h3>
-          <p className="text-neutral-400 mb-6 text-lg max-w-2xl mx-auto">
+          <p className="text-neutral-400 mb-8 text-lg max-w-2xl mx-auto">
             Agende uma consultoria e aprenda como usar IA de forma assertiva e eficiente. 
             Sem teoria genérica — apenas orientação prática para o seu caso específico.
           </p>
-          <HudBorder variant="outlined" intensity="medium" className="inline-block">
+          <HudBorder variant="glow" intensity="medium" className="inline-block">
             <Button size="lg" href="/contact" variant="primary" className="border-0">
               Agendar Consultoria
               <ArrowRight className="ml-2" size={20} />
