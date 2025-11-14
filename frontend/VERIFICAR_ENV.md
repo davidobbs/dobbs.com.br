@@ -6,22 +6,25 @@ Se o chatbot está retornando a mensagem mockada, significa que `OPENROUTER_API_
 
 ## ✅ Verificação Local (Desenvolvimento)
 
-### 1. Verificar se o arquivo `.env.local` existe
+### 1. Verificar se o arquivo `.env` existe na raiz
 
 ```bash
-cd frontend
-ls -la .env.local
+# Na raiz do projeto
+ls -la .env
 # ou no Windows:
-dir .env.local
+dir .env
 ```
 
-### 2. Verificar conteúdo do `.env.local`
+> ⚠️ **IMPORTANTE:** O arquivo `.env` deve estar na **raiz do projeto**, não na pasta `frontend/`.
 
-O arquivo deve conter:
+### 2. Verificar conteúdo do `.env`
+
+O arquivo deve conter (mínimo necessário para o chatbot):
 
 ```env
 OPENROUTER_API_KEY=sk-or-v1-sua_chave_aqui
 OPENROUTER_MODEL=openai/gpt-4o-mini
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
 **Importante:**
@@ -31,12 +34,15 @@ OPENROUTER_MODEL=openai/gpt-4o-mini
 
 ### 3. Reiniciar o servidor
 
-Após criar ou modificar `.env.local`, você **DEVE** reiniciar o servidor:
+Após criar ou modificar `.env` na raiz, você **DEVE** reiniciar o servidor:
 
 ```bash
+# Na raiz do projeto
 # Parar o servidor (Ctrl+C)
 # Depois iniciar novamente:
 npm run dev
+# ou
+npm run dev:frontend
 ```
 
 ### 4. Verificar logs
@@ -103,7 +109,7 @@ Após adicionar/modificar variáveis:
 1. Verifique se não há espaços extras
 2. Verifique se não há aspas na chave
 3. Reinicie o servidor (local) ou faça redeploy (Vercel)
-4. Verifique se o arquivo está na pasta correta (`frontend/.env.local`)
+4. Verifique se o arquivo está na **raiz do projeto** (`.env` na raiz, não em `frontend/`)
 
 ### Problema: Funciona local mas não no Vercel
 
@@ -128,9 +134,9 @@ Após adicionar/modificar variáveis:
 
 ## 📝 Checklist Rápido
 
-- [ ] Arquivo `.env.local` existe em `frontend/`
+- [ ] Arquivo `.env` existe na **raiz do projeto** (não em `frontend/`)
 - [ ] `OPENROUTER_API_KEY` está configurada (sem aspas, sem espaços)
-- [ ] Servidor foi reiniciado após criar/modificar `.env.local`
+- [ ] Servidor foi reiniciado após criar/modificar `.env`
 - [ ] No Vercel: variáveis estão configuradas em Settings → Environment Variables
 - [ ] No Vercel: variáveis estão marcadas para Production
 - [ ] No Vercel: foi feito redeploy após adicionar variáveis

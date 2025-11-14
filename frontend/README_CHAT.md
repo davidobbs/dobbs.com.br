@@ -9,7 +9,9 @@
 
 ### 1. Variáveis de Ambiente
 
-Crie um arquivo `.env.local` na pasta `frontend/` com as seguintes variáveis:
+**IMPORTANTE:** O projeto agora usa um arquivo `.env` unificado na raiz do projeto.
+
+Crie um arquivo `.env` na raiz do projeto (não na pasta `frontend/`) com as seguintes variáveis:
 
 ```env
 # OpenRouter API Configuration
@@ -18,7 +20,12 @@ OPENROUTER_MODEL=openai/gpt-4o-mini
 
 # Site URL (opcional)
 NEXT_PUBLIC_SITE_URL=https://dobbs.com.br
+
+# API URL do backend (opcional)
+NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
+
+> 💡 **Dica:** Copie o arquivo `env.example` da raiz para `.env` e preencha com seus valores reais.
 
 ### 2. Modelos Disponíveis
 

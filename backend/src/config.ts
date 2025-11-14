@@ -1,6 +1,13 @@
 import dotenv from 'dotenv';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+// Carrega .env da raiz do projeto (monorepo)
+// Funciona tanto em desenvolvimento (tsx) quanto em produção (node dist/index.js)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const envPath = resolve(__dirname, '../../.env');
+dotenv.config({ path: envPath });
 
 export const config = {
   port: parseInt(process.env.PORT || '3001', 10),

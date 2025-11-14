@@ -587,9 +587,9 @@ npm run install:all
 # 2. Iniciar banco de dados (Docker)
 docker-compose up -d
 
-# 3. Configurar variáveis de ambiente do backend
-cd backend
+# 3. Configurar variáveis de ambiente (unificadas na raiz)
 cp env.example .env
+# Edite o arquivo .env com suas configurações
 
 # 4. Configurar banco de dados
 npm run db:generate  # Gerar Prisma Client
@@ -656,37 +656,40 @@ backend/
 
 ## 🔧 Configuração
 
-### Backend
+### Variáveis de Ambiente (Unificadas)
 
-Copie `.env.example` para `.env` em `backend/`:
+**IMPORTANTE:** O projeto usa um arquivo `.env` unificado na raiz do projeto para evitar conflitos no Vercel.
+
+Copie `env.example` para `.env` na raiz:
 
 ```bash
-cd backend
-cp .env.example .env
+# Na raiz do projeto
+cp env.example .env
 ```
 
-Variáveis disponíveis:
-- `PORT`: Porta do servidor (padrão: 3001)
-- `HOST`: Host do servidor (padrão: 0.0.0.0)
-- `NODE_ENV`: Ambiente (development/production)
-- `CORS_ORIGINS`: Origins permitidos (separados por vírgula)
-- `LOG_LEVEL`: Nível de log (trace, debug, info, warn, error, fatal)
-
-### Frontend
-
-Variáveis de ambiente em `frontend/.env.local`:
+Todas as variáveis de ambiente devem estar no arquivo `.env` da raiz:
 
 ```env
+# Database
+DATABASE_URL="postgresql://dobbs:dobbs123@localhost:5432/dobbs_blog?schema=public"
+
+# Backend
+PORT=3001
+HOST=0.0.0.0
+NODE_ENV=development
+CORS_ORIGINS=http://localhost:3000
+LOG_LEVEL=info
+
 # OpenRouter API (obrigatório para chatbot funcionar)
 OPENROUTER_API_KEY=sk-or-v1-sua_chave_aqui
 OPENROUTER_MODEL=openai/gpt-4o-mini
 
-# Site URL (opcional)
-NEXT_PUBLIC_SITE_URL=https://dobbs.com.br
-
-# API URL do backend (se houver backend separado)
+# Frontend
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
+
+> 💡 **Vantagem:** Com um único `.env` na raiz, você configura tudo uma vez e funciona tanto localmente quanto no Vercel (que só permite um arquivo de variáveis de ambiente).
 
 > ℹ️ A rota `/api/chat` do frontend tenta usar o backend definido em `NEXT_PUBLIC_API_URL`.  
 > Se ele não estiver disponível (por exemplo, no Vercel sem backend dedicado), ela
