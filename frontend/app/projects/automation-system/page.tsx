@@ -1,4 +1,3 @@
-import { notFound } from 'next/navigation';
 import { Section } from '@/components/ui/Section';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
