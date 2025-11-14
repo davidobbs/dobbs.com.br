@@ -11,8 +11,13 @@ dist
 /build
 
 # Environment
+# Apenas o .env da raiz deve ser usado (unificado para frontend + backend)
 .env
 .env*.local
+
+# Ignorar arquivos .env antigos nas subpastas (não devem existir mais)
+frontend/.env*
+backend/.env*
 
 # Logs
 *.log

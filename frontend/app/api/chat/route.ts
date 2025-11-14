@@ -1,4 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
+import dotenv from 'dotenv';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
+
+// Carrega .env da raiz do monorepo (garantir que está disponível no runtime)
+if (typeof window === 'undefined') {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  // Caminho relativo: de frontend/app/api/chat/route.ts para raiz do projeto
+  // route.ts está em: frontend/app/api/chat/
+  // Para chegar na raiz: ../../../../ (4 níveis acima)
+  const rootEnvPath = resolve(__dirname, '../../../../.env');
+  const result = dotenv.config({ path: rootEnvPath });
+  console.log('[Chat API] Carregando .env de:', rootEnvPath);
+  console.log('[Chat API] Arquivo .env existe?', existsSync(rootEnvPath));
+  console.log('[Chat API] Resultado do dotenv:', result.error ? 'ERRO: ' + result.error.message : 'OK');
+  if (result.parsed) {
+    console.log('[Chat API] Variáveis carregadas:', Object.keys(result.parsed).filter(k => k.includes('OPENROUTER') || k.includes('NEXT_PUBLIC')));
+  }
+  console.log('[Chat API] OPENROUTER_API_KEY após carregar .env:', process.env.OPENROUTER_API_KEY ? `Configurada (tamanho: ${process.env.OPENROUTER_API_KEY.length})` : 'NÃO CONFIGURADA');
+}
 
 type RawHistoryMessage = {
   role?: string;
@@ -94,107 +116,149 @@ Atualmente, estou em desenvolvimento e em breve estarei totalmente funcional par
 Por enquanto, sinta-se à vontade para entrar em contato através do formulário de contato para uma consultoria personalizada!`;
 
 export async function POST(request: NextRequest) {
-  console.log('[Chat API] Requisição recebida');
-  const startTime = Date.now();
-  
-  let requestBody: { message?: string; conversationHistory?: RawHistoryMessage[] } | null = null;
-
   try {
-    console.log('[Chat API] Parseando body da requisição...');
-    requestBody = await request.json();
-    console.log('[Chat API] Body parseado:', { 
-      hasMessage: !!requestBody?.message,
-      messageLength: requestBody?.message?.length,
-      historyLength: requestBody?.conversationHistory?.length 
-    });
-  } catch (error) {
-    console.error('[Chat API] Erro ao parsear body:', error);
-    return NextResponse.json({ error: { message: 'Corpo da requisição inválido' } }, { status: 400 });
-  }
+    console.log('[Chat API] Requisição recebida');
+    console.log('[Chat API] URL da requisição:', request.url);
+    console.log('[Chat API] Headers da requisição:', Object.fromEntries(request.headers.entries()));
+    const startTime = Date.now();
+    
+    let requestBody: { message?: string; conversationHistory?: RawHistoryMessage[] } | null = null;
 
-  const { message, conversationHistory } = requestBody || {};
+    try {
+      console.log('[Chat API] Parseando body da requisição...');
+      requestBody = await request.json();
+      console.log('[Chat API] Body parseado:', { 
+        hasMessage: !!requestBody?.message,
+        messageLength: requestBody?.message?.length,
+        historyLength: requestBody?.conversationHistory?.length 
+      });
+    } catch (error) {
+      console.error('[Chat API] Erro ao parsear body:', error);
+      return NextResponse.json({ error: { message: 'Corpo da requisição inválido' } }, { status: 400 });
+    }
 
-  if (!message || typeof message !== 'string' || message.trim().length === 0) {
-    console.error('[Chat API] Mensagem inválida ou vazia');
-    return NextResponse.json({ error: { message: 'Mensagem é obrigatória' } }, { status: 400 });
-  }
-  
-  console.log('[Chat API] Processando mensagem:', message.substring(0, 50) + '...');
+    const { message, conversationHistory } = requestBody || {};
 
-  const sanitizedHistory = sanitizeHistory(conversationHistory);
-  const trimmedMessage = message.trim();
-  const payload: ChatPayload = {
-    message: trimmedMessage,
-    conversationHistory: sanitizedHistory,
-  };
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      console.error('[Chat API] Mensagem inválida ou vazia');
+      return NextResponse.json({ error: { message: 'Mensagem é obrigatória' } }, { status: 400 });
+    }
+    
+    console.log('[Chat API] Processando mensagem:', message.substring(0, 50) + '...');
 
-  const backendUrl = getBackendUrl();
-  const canProxyToBackend = shouldProxyToBackend(backendUrl);
+    const sanitizedHistory = sanitizeHistory(conversationHistory);
+    const trimmedMessage = message.trim();
+    const payload: ChatPayload = {
+      message: trimmedMessage,
+      conversationHistory: sanitizedHistory,
+    };
 
-  console.log('[Chat API] Backend URL:', backendUrl);
-  console.log('[Chat API] Pode fazer proxy para backend:', canProxyToBackend);
+    const backendUrl = getBackendUrl();
+    const canProxyToBackend = shouldProxyToBackend(backendUrl);
+    const hasOpenRouterKey = !!process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_API_KEY.trim().length > 0;
 
-  if (canProxyToBackend) {
-    console.log('[Chat API] Tentando proxy para backend...');
-    const backendResult = await proxyToBackend(payload, backendUrl);
-    console.log('[Chat API] Resultado do backend:', backendResult.type);
+    console.log('[Chat API] Backend URL:', backendUrl);
+    console.log('[Chat API] Pode fazer proxy para backend:', canProxyToBackend);
+    console.log('[Chat API] NODE_ENV:', process.env.NODE_ENV);
+    console.log('[Chat API] OPENROUTER_API_KEY disponível?', hasOpenRouterKey);
+    console.log('[Chat API] OPENROUTER_API_KEY tamanho:', process.env.OPENROUTER_API_KEY?.length || 0);
 
-    if (backendResult.type === 'success') {
+    // Se temos OPENROUTER_API_KEY válida, vamos direto para OpenRouter (mais rápido)
+    // Só tentamos o backend se não tivermos a chave OpenRouter
+    if (canProxyToBackend && !hasOpenRouterKey) {
+      console.log('[Chat API] Tentando proxy para backend (timeout de 3s)...');
+      try {
+        // Criar um timeout curto para o backend (3 segundos)
+        const backendResultPromise = proxyToBackend(payload, backendUrl);
+        const backendResult = await Promise.race([
+          backendResultPromise,
+          new Promise<BackendResult>((resolve) => {
+            setTimeout(() => {
+              resolve({
+                type: 'error',
+                status: 504,
+                retryable: true,
+                message: 'Backend timeout',
+              });
+            }, 3000);
+          }),
+        ]);
+
+        console.log('[Chat API] Resultado do backend:', backendResult.type);
+
+        if (backendResult.type === 'success') {
+          const duration = Date.now() - startTime;
+          console.log(`[Chat API] Sucesso! Retornando resposta em ${duration}ms`);
+          return NextResponse.json(
+            {
+              message: backendResult.message,
+              usage: backendResult.usage ?? null,
+            },
+            { status: 200, headers: JSON_HEADERS }
+          );
+        }
+
+        if (!backendResult.retryable && backendResult.status !== 504) {
+          const duration = Date.now() - startTime;
+          console.log(`[Chat API] Erro não retryable. Retornando erro em ${duration}ms`);
+          return NextResponse.json({ error: { message: backendResult.message } }, { status: backendResult.status });
+        }
+
+        console.warn('[Chat API] Backend indisponível ou timeout, mas sem OPENROUTER_API_KEY para fallback');
+      } catch (error) {
+        console.warn('[Chat API] Erro ao tentar backend:', error);
+      }
+    } else if (hasOpenRouterKey) {
+      console.log('[Chat API] OPENROUTER_API_KEY disponível, pulando backend e indo direto para OpenRouter');
+    }
+
+    console.log('[Chat API] Chamando OpenRouter diretamente...');
+    const openRouterResult = await callOpenRouter(payload);
+    console.log('[Chat API] Resultado do OpenRouter:', openRouterResult.type);
+
+    if (openRouterResult.type === 'success') {
       const duration = Date.now() - startTime;
-      console.log(`[Chat API] Sucesso! Retornando resposta em ${duration}ms`);
+      console.log(`[Chat API] Sucesso com OpenRouter! Retornando resposta em ${duration}ms`);
       return NextResponse.json(
         {
-          message: backendResult.message,
-          usage: backendResult.usage ?? null,
+          message: openRouterResult.message,
+          usage: openRouterResult.usage ?? null,
         },
         { status: 200, headers: JSON_HEADERS }
       );
     }
 
-    if (!backendResult.retryable) {
+    if (hasOpenRouterKey) {
       const duration = Date.now() - startTime;
-      console.log(`[Chat API] Erro não retryable. Retornando erro em ${duration}ms`);
-      return NextResponse.json({ error: { message: backendResult.message } }, { status: backendResult.status });
+      console.log(`[Chat API] Erro do OpenRouter. Retornando erro em ${duration}ms`);
+      return NextResponse.json(
+        { error: { message: openRouterResult.message } },
+        { status: openRouterResult.status, headers: JSON_HEADERS }
+      );
     }
 
-    console.warn('[Chat API] Backend indisponível, tentando fallback direto no OpenRouter');
-  }
-
-  console.log('[Chat API] Chamando OpenRouter diretamente...');
-  const openRouterResult = await callOpenRouter(payload);
-  console.log('[Chat API] Resultado do OpenRouter:', openRouterResult.type);
-
-  if (openRouterResult.type === 'success') {
+    console.warn('[Chat API] Sem backend ou API key, retornando resposta mockada');
     const duration = Date.now() - startTime;
-    console.log(`[Chat API] Sucesso com OpenRouter! Retornando resposta em ${duration}ms`);
+    console.log(`[Chat API] Retornando fallback em ${duration}ms`);
     return NextResponse.json(
+      { message: FALLBACK_MESSAGE(trimmedMessage) },
       {
-        message: openRouterResult.message,
-        usage: openRouterResult.usage ?? null,
-      },
-      { status: 200, headers: JSON_HEADERS }
+        status: 200,
+        headers: JSON_HEADERS,
+      }
     );
-  }
-
-  if (process.env.OPENROUTER_API_KEY) {
-    const duration = Date.now() - startTime;
-    console.log(`[Chat API] Erro do OpenRouter. Retornando erro em ${duration}ms`);
+  } catch (error) {
+    console.error('[Chat API] Erro não tratado na rota:', error);
+    console.error('[Chat API] Stack do erro:', error instanceof Error ? error.stack : 'N/A');
     return NextResponse.json(
-      { error: { message: openRouterResult.message } },
-      { status: openRouterResult.status, headers: JSON_HEADERS }
+      { 
+        error: { 
+          message: error instanceof Error ? error.message : 'Erro interno do servidor' 
+        } 
+      },
+      { status: 500, headers: JSON_HEADERS }
     );
   }
-
-  console.warn('[Chat API] Sem backend ou API key, retornando resposta mockada');
-  const duration = Date.now() - startTime;
-  console.log(`[Chat API] Retornando fallback em ${duration}ms`);
-  return NextResponse.json(
-    { message: FALLBACK_MESSAGE(trimmedMessage) },
-    {
-      status: 200,
-      headers: JSON_HEADERS,
-    }
-  );
 }
 
 function sanitizeHistory(history?: RawHistoryMessage[]): ConversationMessage[] {
@@ -258,6 +322,10 @@ function shouldProxyToBackend(backendUrl: string) {
 async function proxyToBackend(payload: ChatPayload, backendUrl: string): Promise<BackendResult> {
   const backendChatUrl = `${backendUrl}/api/chat`;
   console.log('[Chat API] Fazendo proxy para backend:', backendChatUrl);
+  console.log('[Chat API] Payload sendo enviado:', { 
+    messageLength: payload.message.length, 
+    historyLength: payload.conversationHistory.length 
+  });
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos de timeout
@@ -272,17 +340,33 @@ async function proxyToBackend(payload: ChatPayload, backendUrl: string): Promise
 
     clearTimeout(timeoutId);
     console.log('[Chat API] Status da resposta do backend:', response.status);
+    console.log('[Chat API] Headers da resposta:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      let errorData: { error?: { message?: string } } = {};
+      try {
+        const text = await response.text();
+        console.log('[Chat API] Resposta de erro (texto):', text.substring(0, 500));
+        errorData = JSON.parse(text);
+      } catch (parseError) {
+        console.error('[Chat API] Erro ao parsear resposta de erro:', parseError);
+        errorData = {};
+      }
+      
       const message =
         errorData?.error?.message ||
-        (response.status >= 500 ? 'Serviço de IA indisponível no momento.' : 'Erro ao processar mensagem.');
+        (response.status === 401 
+          ? 'Erro de autenticação no backend. Verifique se o backend está configurado corretamente.'
+          : response.status >= 500 
+          ? 'Serviço de IA indisponível no momento.' 
+          : 'Erro ao processar mensagem.');
+
+      console.error('[Chat API] Erro do backend:', { status: response.status, message });
 
       return {
         type: 'error',
         status: response.status,
-        retryable: response.status >= 500,
+        retryable: response.status >= 500 || response.status === 401,
         message,
       };
     }
@@ -326,16 +410,31 @@ async function proxyToBackend(payload: ChatPayload, backendUrl: string): Promise
 }
 
 async function callOpenRouter(payload: ChatPayload): Promise<OpenRouterResult> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  // Tentar carregar novamente o .env se necessário
+  let apiKey = process.env.OPENROUTER_API_KEY;
+  
+  if (!apiKey) {
+    // Tentar carregar do .env da raiz novamente
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const rootEnvPath = resolve(__dirname, '../../../../.env');
+    const result = dotenv.config({ path: rootEnvPath });
+    apiKey = process.env.OPENROUTER_API_KEY;
+    console.log('[Chat API] Tentativa de recarregar .env:', result.error ? 'ERRO: ' + result.error.message : 'OK');
+  }
 
   console.log('[Chat API] Verificando OPENROUTER_API_KEY:', apiKey ? 'Configurada (tamanho: ' + apiKey.length + ')' : 'NÃO CONFIGURADA');
+  console.log('[Chat API] OPENROUTER_API_KEY existe?', !!apiKey);
+  console.log('[Chat API] OPENROUTER_API_KEY valor (primeiros 10 chars):', apiKey ? apiKey.substring(0, 10) + '...' : 'vazia');
+  console.log('[Chat API] OPENROUTER_MODEL:', process.env.OPENROUTER_MODEL);
+  console.log('[Chat API] NEXT_PUBLIC_SITE_URL:', process.env.NEXT_PUBLIC_SITE_URL);
 
-  if (!apiKey) {
-    console.warn('[Chat API] OPENROUTER_API_KEY não configurada no frontend');
+  if (!apiKey || apiKey.trim().length === 0) {
+    console.warn('[Chat API] OPENROUTER_API_KEY não configurada ou vazia');
     return {
       type: 'error',
       status: 503,
-      message: 'OPENROUTER_API_KEY não configurada. Configure a variável no frontend.',
+      message: 'OPENROUTER_API_KEY não configurada. Configure a variável no .env da raiz do projeto.',
     };
   }
 

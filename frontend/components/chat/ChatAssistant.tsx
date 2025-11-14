@@ -123,7 +123,7 @@ export function ChatAssistant({ className }: ChatAssistantProps) {
 
       if (!response.ok) {
         console.error('[ChatAssistant] Resposta não OK:', response.status, response.statusText);
-        let errorData = {};
+        let errorData: { error?: { message?: string } } = {};
         try {
           errorData = await response.json();
           console.error('[ChatAssistant] Dados do erro:', errorData);
@@ -132,7 +132,37 @@ export function ChatAssistant({ className }: ChatAssistantProps) {
           const text = await response.text().catch(() => '');
           console.error('[ChatAssistant] Resposta como texto:', text);
         }
-        throw new Error(errorData.error?.message || `Erro ${response.status}: ${response.statusText}`);
+        
+        // Mensagens de erro mais amigáveis baseadas no status
+        let errorMessage = errorData.error?.message;
+        if (!errorMessage) {
+          switch (response.status) {
+            case 401:
+              errorMessage = 'Erro de autenticação. Verifique se as credenciais estão configuradas corretamente.';
+              break;
+            case 403:
+              errorMessage = 'Acesso negado. Você não tem permissão para acessar este recurso.';
+              break;
+            case 404:
+              errorMessage = 'Recurso não encontrado.';
+              break;
+            case 429:
+              errorMessage = 'Muitas requisições. Por favor, aguarde um momento e tente novamente.';
+              break;
+            case 500:
+            case 502:
+            case 503:
+              errorMessage = 'Serviço temporariamente indisponível. Por favor, tente novamente mais tarde.';
+              break;
+            case 504:
+              errorMessage = 'Tempo de resposta excedido. Por favor, tente novamente.';
+              break;
+            default:
+              errorMessage = `Erro ${response.status}: ${response.statusText}`;
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
 
       console.log('[ChatAssistant] Parseando JSON da resposta...');

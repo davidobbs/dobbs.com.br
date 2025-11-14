@@ -1,27 +1,45 @@
 # Dependencies
 node_modules
+/.pnp
+.pnp.js
 
 # Build
-dist
+/.next/
+/out/
+/build
 
 # Environment
 # ⚠️ IMPORTANTE: Não use .env aqui!
 # Use apenas o .env unificado na raiz do projeto
 .env
-.env.local
 .env*.local
 
 # Logs
 *.log
 logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+/coverage
+
+# Misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
 
 # IDE
 .vscode
 .idea
 *.swp
 *.swo
-
-# OS
-.DS_Store
-Thumbs.db
+*~
 

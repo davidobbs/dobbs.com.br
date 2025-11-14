@@ -6,8 +6,11 @@ import { fileURLToPath } from 'url';
 // Funciona tanto em desenvolvimento (tsx) quanto em produção (node dist/index.js)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const envPath = resolve(__dirname, '../../.env');
+// De backend/src/ ou backend/dist/ para raiz: 3 níveis acima
+const envPath = resolve(__dirname, '../../../.env');
 dotenv.config({ path: envPath });
+console.log('[Backend Config] Carregando .env de:', envPath);
+console.log('[Backend Config] OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'Configurada' : 'NÃO CONFIGURADA');
 
 export const config = {
   port: parseInt(process.env.PORT || '3001', 10),
