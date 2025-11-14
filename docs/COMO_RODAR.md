@@ -67,6 +67,32 @@ Ready on http://localhost:3000
 
 ---
 
+## 🤖 Configuração do Assistente de IA (OpenRouter)
+
+Para que o chatbot responda usando a OpenRouter existem dois caminhos (você pode usar os dois ao mesmo tempo):
+
+1. **Backend (`backend/.env`)**  
+   - Configure `OPENROUTER_API_KEY` e opcionalmente `OPENROUTER_MODEL`.  
+   - Sempre que `NEXT_PUBLIC_API_URL` apontar para esse backend, o frontend irá proxyar as mensagens para ele.
+
+2. **Frontend (`frontend/.env.local`)**  
+   - Adicione:
+
+```env
+OPENROUTER_API_KEY=sk-or-v1-sua_chave_aqui
+OPENROUTER_MODEL=openai/gpt-4o-mini
+NEXT_PUBLIC_SITE_URL=https://seusite.com.br
+# NEXT_PUBLIC_API_URL só é necessário se houver um backend separado
+```
+
+> A rota `frontend/app/api/chat/route.ts` tenta primeiro falar com o backend.
+> Se ele não estiver disponível (por exemplo, em produção no Vercel sem backend dedicado)
+> ela chama a OpenRouter diretamente usando as variáveis acima.  
+> Portanto, basta manter a API key configurada no frontend para que o assistente funcione
+> mesmo sem subir o backend.
+
+---
+
 ## 🔧 Comandos Disponíveis
 
 ### Na Raiz do Projeto (Monorepo)
@@ -134,6 +160,9 @@ Ready on http://localhost:3000
 
 ### Porta já está em uso
 
+> ℹ️ A partir de agora `npm run dev:frontend` verifica o porto escolhido (padrão `3000`) antes de iniciar o Next.  
+> Se aparecer a mensagem `[dev] Port 3000 is already in use`, feche o processo listado abaixo ou defina `PORT=300x` antes de rodar o comando.
+
 **Backend (porta 3001):**
 ```powershell
 # Verificar o que está usando a porta
@@ -150,6 +179,20 @@ Get-NetTCPConnection -LocalPort 3000
 
 # Matar o processo
 Stop-Process -Id <PID> -Force
+```
+
+**Frontend (porta 3000 por padrão):**
+
+```powershell
+# O comando agora falha quando a porta já estiver ocupada
+npm run dev:frontend
+```
+
+Se quiser usar outra porta temporariamente:
+
+```powershell
+$env:PORT=3002
+npm run dev:frontend
 ```
 
 **OU altere a porta:**

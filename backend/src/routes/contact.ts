@@ -23,7 +23,7 @@ export async function contactRoutes(fastify: FastifyInstance) {
         data: validatedData,
       });
 
-      fastify.log.info('Nova mensagem de contato salva:', contact.id);
+      fastify.log.info({ contactId: contact.id }, 'Nova mensagem de contato salva');
 
       // TODO: Implementar envio de email (usar Resend, SendGrid, etc)
 

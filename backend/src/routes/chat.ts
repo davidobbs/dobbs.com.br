@@ -1,21 +1,48 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import rateLimit from '@fastify/rate-limit';
 import { config } from '../config';
 
 const chatMessageSchema = z.object({
-  message: z.string().min(1, 'Mensagem não pode estar vazia').max(5000, 'Mensagem muito longa'),
+  message: z
+    .string()
+    .min(1, 'Mensagem não pode estar vazia')
+    .max(2000, 'Mensagem muito longa (máximo 2000 caracteres)')
+    .trim(),
   conversationHistory: z
     .array(
       z.object({
         role: z.enum(['user', 'assistant', 'system']),
-        content: z.string(),
+        content: z.string().max(2000, 'Mensagem do histórico muito longa').trim(),
       })
     )
+    .max(20, 'Histórico de conversa muito longo (máximo 20 mensagens)')
     .optional()
     .default([]),
 });
 
 type ChatMessage = z.infer<typeof chatMessageSchema>;
+
+type OpenRouterErrorResponse = {
+  error?: {
+    message?: string;
+  };
+};
+
+type OpenRouterChatResponse = {
+  choices?: Array<{
+    message?: {
+      role?: string;
+      content?: string;
+    };
+  }>;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    [key: string]: number | undefined;
+  };
+};
 
 const SYSTEM_PROMPT = `Você é o assistente de IA do Davi Dobbs. Seu objetivo é ter conversas breves, interativas e aprender com cada usuário para melhorar suas respostas.
 
@@ -64,58 +91,136 @@ TECNOLOGIA:
 Lembre-se: INTERAÇÃO > Informação. Melhor uma conversa curta e útil do que um monólogo longo.`;
 
 export async function chatRoutes(fastify: FastifyInstance) {
+  // Rate limiting específico para chat (mais restritivo que o global de 100/min)
+  // Aplicado apenas na rota /api/chat
+  await fastify.register(rateLimit, {
+    max: 20, // 20 requisições por minuto por IP (mais restritivo para chat)
+    timeWindow: '1 minute',
+    skipOnError: false,
+    addHeaders: {
+      'x-ratelimit-limit': true,
+      'x-ratelimit-remaining': true,
+      'x-ratelimit-reset': true,
+    },
+  });
+
   // POST /api/chat - Enviar mensagem para o assistente de IA
   fastify.post<{
     Body: ChatMessage;
   }>('/api/chat', async (request, reply) => {
+    // Log de segurança (sem dados sensíveis)
+    fastify.log.info(
+      {
+        ip: request.ip,
+        userAgent: request.headers['user-agent'],
+        requestId: request.id,
+      },
+      'Requisição de chat recebida'
+    );
     try {
       // Validar dados de entrada
       const validatedData = chatMessageSchema.parse(request.body);
 
-      // Verificar se a API key está configurada
-      if (!config.openRouter.apiKey) {
-        fastify.log.error('OPENROUTER_API_KEY não configurada');
-        return reply.status(500).send({
+      // Verificar se a API key está configurada e válida
+      if (!config.openRouter.apiKey || config.openRouter.apiKey.trim().length === 0) {
+        fastify.log.error('OPENROUTER_API_KEY não configurada ou inválida');
+        return reply.status(503).send({
           error: {
-            message: 'Serviço de IA não configurado. Entre em contato com o administrador.',
+            message: 'Serviço de IA temporariamente indisponível. Tente novamente mais tarde.',
           },
         });
       }
 
-      // Construir histórico de mensagens
+      // Validar formato da API key (deve começar com sk-or-v1-)
+      if (!config.openRouter.apiKey.startsWith('sk-or-v1-')) {
+        fastify.log.error('OPENROUTER_API_KEY com formato inválido');
+        return reply.status(503).send({
+          error: {
+            message: 'Serviço de IA temporariamente indisponível.',
+          },
+        });
+      }
+
+      // Sanitizar e validar histórico de conversa
+      const sanitizedHistory = validatedData.conversationHistory
+        .filter((msg) => msg.content && msg.content.trim().length > 0)
+        .slice(-10); // Limitar a últimas 10 mensagens para evitar payload muito grande
+
+      // Construir histórico de mensagens (limitar tamanho total)
       const messages = [
         {
           role: 'system' as const,
           content: SYSTEM_PROMPT,
         },
-        ...validatedData.conversationHistory,
+        ...sanitizedHistory,
         {
           role: 'user' as const,
-          content: validatedData.message,
+          content: validatedData.message.trim(),
         },
       ];
 
-      // Fazer requisição para OpenRouter
-      const response = await fetch(`${config.openRouter.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${config.openRouter.apiKey}`,
-          'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
-          'X-Title': 'Dobbs Blog - Assistente de IA',
-        },
-        body: JSON.stringify({
-          model: config.openRouter.model,
-          messages,
-          temperature: 0.8,
-          max_tokens: 500,
-        }),
-      });
+      // Validar tamanho total do payload
+      const totalChars = messages.reduce((acc, msg) => acc + msg.content.length, 0);
+      if (totalChars > 10000) {
+        fastify.log.warn({ totalChars }, 'Payload muito grande, truncando histórico');
+        // Manter apenas system prompt e última mensagem se payload for muito grande
+        messages.splice(1, messages.length - 2);
+      }
+
+      // Timeout para requisição OpenRouter (30 segundos)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+      let response: Response;
+      try {
+        // Fazer requisição para OpenRouter
+        response = await fetch(`${config.openRouter.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${config.openRouter.apiKey}`,
+            'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
+            'X-Title': 'Dobbs Blog - Assistente de IA',
+          },
+          body: JSON.stringify({
+            model: config.openRouter.model,
+            messages,
+            temperature: 0.8,
+            max_tokens: 500,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          fastify.log.warn('Timeout na requisição para OpenRouter');
+          return reply.status(504).send({
+            error: {
+              message: 'Tempo de resposta excedido. Por favor, tente novamente.',
+            },
+          });
+        }
+        
+        fastify.log.error({ fetchError }, 'Erro ao fazer requisição para OpenRouter');
+        return reply.status(502).send({
+          error: {
+            message: 'Erro ao conectar com o serviço de IA. Tente novamente mais tarde.',
+          },
+        });
+      }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        fastify.log.error('Erro na API do OpenRouter:', errorData);
-        
+        let errorData: OpenRouterErrorResponse = {};
+        try {
+          errorData = (await response.json()) as OpenRouterErrorResponse;
+        } catch (parseError) {
+          fastify.log.warn({ parseError }, 'Falha ao interpretar resposta de erro do OpenRouter');
+        }
+        fastify.log.error({ errorData }, 'Erro na API do OpenRouter');
+
         return reply.status(response.status).send({
           error: {
             message: 'Erro ao processar mensagem com a IA',
@@ -124,13 +229,13 @@ export async function chatRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as OpenRouterChatResponse;
 
       // Extrair resposta do assistente
       const assistantMessage = data.choices?.[0]?.message?.content;
 
       if (!assistantMessage) {
-        fastify.log.error('Resposta inválida do OpenRouter:', data);
+        fastify.log.error({ data }, 'Resposta inválida do OpenRouter');
         return reply.status(500).send({
           error: {
             message: 'Resposta inválida do serviço de IA',
@@ -139,11 +244,17 @@ export async function chatRoutes(fastify: FastifyInstance) {
       }
 
       // Log da interação (sem dados sensíveis)
-      fastify.log.info('Mensagem processada com sucesso', {
-        messageLength: validatedData.message.length,
-        responseLength: assistantMessage.length,
-        model: config.openRouter.model,
-      });
+      fastify.log.info(
+        {
+          requestId: request.id,
+          ip: request.ip,
+          messageLength: validatedData.message.length,
+          responseLength: assistantMessage.length,
+          model: config.openRouter.model,
+          tokensUsed: data.usage?.total_tokens || 0,
+        },
+        'Mensagem processada com sucesso'
+      );
 
       return {
         success: true,
@@ -152,6 +263,14 @@ export async function chatRoutes(fastify: FastifyInstance) {
       };
     } catch (error) {
       if (error instanceof z.ZodError) {
+        fastify.log.warn(
+          {
+            requestId: request.id,
+            ip: request.ip,
+            errors: error.errors,
+          },
+          'Validação de dados falhou'
+        );
         return reply.status(400).send({
           error: {
             message: 'Dados inválidos',
@@ -160,10 +279,17 @@ export async function chatRoutes(fastify: FastifyInstance) {
         });
       }
 
-      fastify.log.error('Erro ao processar chat:', error);
+      fastify.log.error(
+        {
+          requestId: request.id,
+          ip: request.ip,
+          error: error instanceof Error ? error.message : 'Erro desconhecido',
+        },
+        'Erro ao processar chat'
+      );
       return reply.status(500).send({
         error: {
-          message: 'Erro ao processar mensagem',
+          message: 'Erro ao processar mensagem. Tente novamente mais tarde.',
         },
       });
     }

@@ -71,6 +71,10 @@ export function ChatAssistant({ className }: ChatAssistantProps) {
     setIsLoading(true);
     setError(null);
 
+    // Criar AbortController para timeout (fora do try para ser acessível no catch)
+    const controller = new AbortController();
+    let timeoutId: NodeJS.Timeout | null = null;
+
     try {
       // Construir histórico de conversa para o backend
       const conversationHistory = messages.map((msg) => ({
@@ -78,23 +82,83 @@ export function ChatAssistant({ className }: ChatAssistantProps) {
         content: msg.content,
       }));
 
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: userMessage.content,
-          conversationHistory,
-        }),
-      });
+      // Configurar timeout de 60 segundos
+      timeoutId = setTimeout(() => {
+        console.warn('[ChatAssistant] Timeout atingido após 60 segundos');
+        controller.abort();
+      }, 60000);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || 'Erro ao processar mensagem');
+      console.log('[ChatAssistant] Enviando mensagem:', userMessage.content.substring(0, 50) + '...');
+      console.log('[ChatAssistant] Payload:', { 
+        messageLength: userMessage.content.length,
+        historyLength: conversationHistory.length 
+      });
+      
+      const fetchStartTime = Date.now();
+      console.log('[ChatAssistant] Iniciando fetch...');
+      
+      let response: Response;
+      try {
+        response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: userMessage.content,
+            conversationHistory,
+          }),
+          signal: controller.signal,
+        });
+        
+        const fetchDuration = Date.now() - fetchStartTime;
+        console.log(`[ChatAssistant] Fetch concluído em ${fetchDuration}ms. Status: ${response.status}`);
+      } catch (fetchError) {
+        const fetchDuration = Date.now() - fetchStartTime;
+        console.error(`[ChatAssistant] Erro no fetch após ${fetchDuration}ms:`, fetchError);
+        throw fetchError;
       }
 
-      const data = await response.json();
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        console.error('[ChatAssistant] Resposta não OK:', response.status, response.statusText);
+        let errorData = {};
+        try {
+          errorData = await response.json();
+          console.error('[ChatAssistant] Dados do erro:', errorData);
+        } catch (parseError) {
+          console.error('[ChatAssistant] Erro ao parsear resposta de erro:', parseError);
+          const text = await response.text().catch(() => '');
+          console.error('[ChatAssistant] Resposta como texto:', text);
+        }
+        throw new Error(errorData.error?.message || `Erro ${response.status}: ${response.statusText}`);
+      }
+
+      console.log('[ChatAssistant] Parseando JSON da resposta...');
+      let data;
+      try {
+        data = await response.json();
+        console.log('[ChatAssistant] JSON parseado com sucesso');
+      } catch (parseError) {
+        console.error('[ChatAssistant] Erro ao parsear JSON:', parseError);
+        const text = await response.text().catch(() => '');
+        console.error('[ChatAssistant] Resposta como texto:', text.substring(0, 200));
+        throw new Error('Resposta inválida do servidor (não é JSON)');
+      }
+
+      // Log para debug
+      console.log('[ChatAssistant] Resposta recebida:', { 
+        hasMessage: !!data.message, 
+        messageLength: data.message?.length,
+        dataKeys: Object.keys(data)
+      });
+
+      // Verificar se a resposta contém uma mensagem válida
+      if (!data.message || typeof data.message !== 'string') {
+        console.error('[ChatAssistant] Resposta inválida:', data);
+        throw new Error('Resposta inválida do servidor');
+      }
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -103,9 +167,30 @@ export function ChatAssistant({ className }: ChatAssistantProps) {
         timestamp: new Date(),
       };
 
+      console.log('[ChatAssistant] Adicionando mensagem do assistente:', assistantMessage.content.substring(0, 50) + '...');
       setMessages((prev) => [...prev, assistantMessage]);
+      setError(null); // Limpar erro anterior se houver
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      if (timeoutId) clearTimeout(timeoutId);
+      
+      console.error('[ChatAssistant] Erro capturado:', err);
+      console.error('[ChatAssistant] Tipo do erro:', err?.constructor?.name);
+      console.error('[ChatAssistant] Stack:', err instanceof Error ? err.stack : 'N/A');
+      
+      let errorMessage = 'Erro desconhecido';
+      
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          errorMessage = 'Tempo de resposta excedido. Por favor, tente novamente.';
+          console.warn('[ChatAssistant] Timeout detectado');
+        } else {
+          errorMessage = err.message;
+          console.error('[ChatAssistant] Mensagem de erro:', err.message);
+        }
+      } else {
+        console.error('[ChatAssistant] Erro não é instância de Error:', typeof err, err);
+      }
+      
       setError(errorMessage);
       
       const errorMsg: Message = {

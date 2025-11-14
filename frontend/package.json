@@ -4,7 +4,7 @@
   "description": "Frontend do site pessoal e blog técnico de Davi Dobbs",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node ./scripts/check-port.cjs && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -44,7 +44,7 @@
     "rehype-autolink-headings": "^7.0.0"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": "18.x",
     "npm": ">=9.0.0"
   }
 }

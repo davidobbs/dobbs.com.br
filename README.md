@@ -677,8 +677,30 @@ Variáveis disponíveis:
 Variáveis de ambiente em `frontend/.env.local`:
 
 ```env
+# OpenRouter API (obrigatório para chatbot funcionar)
+OPENROUTER_API_KEY=sk-or-v1-sua_chave_aqui
+OPENROUTER_MODEL=openai/gpt-4o-mini
+
+# Site URL (opcional)
+NEXT_PUBLIC_SITE_URL=https://dobbs.com.br
+
+# API URL do backend (se houver backend separado)
 NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
+
+> ℹ️ A rota `/api/chat` do frontend tenta usar o backend definido em `NEXT_PUBLIC_API_URL`.  
+> Se ele não estiver disponível (por exemplo, no Vercel sem backend dedicado), ela
+> faz a chamada diretamente para a OpenRouter usando `OPENROUTER_API_KEY` e `OPENROUTER_MODEL`.
+> Assim, basta configurar essas variáveis no frontend para que o assistente funcione.
+
+**Para obter a API Key do OpenRouter:**
+1. Acesse https://openrouter.ai
+2. Crie uma conta ou faça login
+3. Vá em https://openrouter.ai/keys
+4. Gere uma nova chave
+5. Copie e cole no `.env.local`
+
+Veja mais detalhes em `frontend/README_CHAT.md`
 
 ## 📝 Scripts Disponíveis
 
