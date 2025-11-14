@@ -104,6 +104,163 @@ Permita trocar estratégias de IA sem modificar o código cliente.
 A arquitetura de sistemas com IA deve balancear performance, custo e manutenibilidade.
     `,
   },
+  'llms-production': {
+    title: 'Quando Usar IA e Quando Não Usar',
+    date: '2024-02-28',
+    readTime: '10 min',
+    tags: ['Estratégia', 'IA', 'Decisão'],
+    content: `
+# Quando Usar IA e Quando Não Usar
+
+Nem tudo precisa de IA. Aprenda a identificar quando IA realmente ajuda e quando é melhor fazer manualmente.
+
+## Quando Usar IA
+
+### 1. Tarefas Repetitivas e Padronizadas
+IA é excelente para tarefas que seguem padrões claros e são repetidas frequentemente.
+
+### 2. Processamento de Grandes Volumes de Dados
+Quando você precisa processar muitos dados rapidamente, IA pode ser uma solução eficiente.
+
+### 3. Análise e Extração de Informações
+IA é muito boa em encontrar padrões e extrair informações relevantes de textos, imagens ou dados.
+
+### 4. Geração de Conteúdo Auxiliar
+Para criar rascunhos, sugestões ou conteúdo de apoio, IA pode acelerar significativamente o trabalho.
+
+## Quando NÃO Usar IA
+
+### 1. Decisões Críticas sem Supervisão
+Nunca deixe IA tomar decisões importantes sem revisão humana.
+
+### 2. Tarefas Simples que Você Já Faz Bem
+Se você já faz algo rápido e bem, não precisa de IA para isso.
+
+### 3. Quando o Custo Supera o Benefício
+Se implementar IA é mais caro ou demorado que fazer manualmente, não vale a pena.
+
+### 4. Dados Sensíveis sem Proteção Adequada
+Não use IA com dados sensíveis sem garantir privacidade e segurança.
+
+## Conclusão
+
+A chave é usar IA como ferramenta, não como substituto do pensamento crítico. Avalie cada caso e decida se IA realmente agrega valor.
+    `,
+  },
+  'clean-code-ai': {
+    title: 'Erros Comuns ao Usar IA e Como Evitar',
+    date: '2024-02-15',
+    readTime: '11 min',
+    tags: ['Erros', 'IA', 'Boas Práticas'],
+    content: `
+# Erros Comuns ao Usar IA e Como Evitar
+
+Os erros mais comuns que pessoas cometem ao usar IA e como evitá-los. Aprenda com os erros de outros.
+
+## Erro 1: Prompts Vagos ou Genéricos
+
+### O Problema
+Fazer perguntas muito genéricas como "me ajude com meu projeto" não funciona.
+
+### A Solução
+Seja específico: "Crie um plano de 5 passos para implementar autenticação JWT em uma API Node.js usando TypeScript".
+
+## Erro 2: Não Revisar ou Validar Resultados
+
+### O Problema
+Aceitar tudo que a IA retorna sem verificar se está correto.
+
+### A Solução
+Sempre revise, teste e valide os resultados. IA pode cometer erros.
+
+## Erro 3: Usar IA para Tudo
+
+### O Problema
+Tentar usar IA para tarefas que seriam mais rápidas manualmente.
+
+### A Solução
+Use IA para tarefas que realmente se beneficiam dela. Nem tudo precisa de IA.
+
+## Erro 4: Não Fornecer Contexto Adequado
+
+### O Problema
+Não dar contexto suficiente para a IA entender o que você precisa.
+
+### A Solução
+Forneça contexto relevante: objetivo, restrições, exemplos e formato desejado.
+
+## Erro 5: Não Iterar ou Refinar
+
+### O Problema
+Aceitar a primeira resposta sem tentar melhorar.
+
+### A Solução
+Itere: peça clarificações, refinamentos e melhorias. A primeira resposta raramente é a melhor.
+
+## Conclusão
+
+Evitar esses erros comuns pode transformar sua experiência com IA de frustrante para produtiva. Lembre-se: IA é uma ferramenta poderosa, mas precisa ser usada com inteligência.
+    `,
+  },
+  'rpa-ai-automation': {
+    title: 'IA para Profissionais: Aplicação Prática',
+    date: '2024-02-20',
+    readTime: '9 min',
+    tags: ['Profissional', 'Aplicação', 'IA'],
+    content: `
+# IA para Profissionais: Aplicação Prática
+
+Como profissionais de diferentes áreas podem usar IA no trabalho. Exemplos práticos e casos reais.
+
+## Para Desenvolvedores
+
+### Geração de Código
+Use IA para gerar boilerplate, testes unitários e documentação. Sempre revise o código gerado.
+
+### Debugging e Análise
+Cole erros e stack traces para a IA ajudar a identificar problemas.
+
+### Refatoração
+Peça para a IA sugerir melhorias de código, otimizações e padrões.
+
+## Para Escritores e Criadores de Conteúdo
+
+### Ideias e Estrutura
+Use IA para brainstorm de ideias e criar estruturas de artigos.
+
+### Revisão e Edição
+Peça para a IA revisar gramática, clareza e estilo.
+
+### Adaptação de Conteúdo
+Transforme um artigo longo em posts de redes sociais ou vice-versa.
+
+## Para Analistas e Pesquisadores
+
+### Análise de Dados
+Use IA para identificar padrões, gerar insights e criar visualizações.
+
+### Resumo de Documentos
+Extraia pontos principais de relatórios longos rapidamente.
+
+### Pesquisa
+Peça para a IA resumir artigos, papers e documentos relevantes.
+
+## Para Gerentes e Líderes
+
+### Planejamento e Estratégia
+Use IA para criar planos de ação, estruturar projetos e identificar riscos.
+
+### Comunicação
+Gere rascunhos de emails, apresentações e relatórios.
+
+### Análise de Métricas
+Peça para a IA analisar dados e sugerir ações baseadas em resultados.
+
+## Conclusão
+
+IA pode ser aplicada em praticamente qualquer área profissional. A chave é entender como ela pode complementar seu trabalho, não substituí-lo.
+    `,
+  },
 };
 
 export async function generateStaticParams() {
