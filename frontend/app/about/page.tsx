@@ -12,8 +12,6 @@ import {
   Sparkles,
   LineChart,
   Users,
-  BookOpen,
-  Briefcase,
   ArrowRight,
 } from 'lucide-react';
 

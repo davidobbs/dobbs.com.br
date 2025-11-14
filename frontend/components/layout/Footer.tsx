@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Github, Linkedin, Mail, Twitter } from 'lucide-react';
 import { Logo } from '../brand/Logo';
-import { HudBorder, HudCorner, HudGrid } from '../ui/HudEffects';
+import { HudBorder, HudGrid } from '../ui/HudEffects';
 
 const socialLinks = [
   { icon: Github, href: 'https://github.com', label: 'GitHub' },

@@ -2,7 +2,7 @@ import { Section } from '@/components/ui/Section';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { HudBorder, HudCorner, HudGrid } from '@/components/ui/HudEffects';
-import { ArrowRight, ExternalLink, Github, TrendingUp, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 
 const allProjects = [
   {

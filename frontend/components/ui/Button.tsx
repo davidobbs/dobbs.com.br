@@ -1,27 +1,45 @@
-import { ButtonHTMLAttributes, AnchorHTMLAttributes, forwardRef } from 'react';
-import { clsx } from 'clsx';
 import Link from 'next/link';
+import { clsx } from 'clsx';
+import {
+  forwardRef,
+  type AnchorHTMLAttributes,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+  type Ref,
+} from 'react';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
-interface BaseButtonProps {
+type BaseButtonProps = {
   variant?: ButtonVariant;
   size?: ButtonSize;
-  children: React.ReactNode;
-}
+  className?: string;
+  children: ReactNode;
+};
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>, BaseButtonProps {
-  href?: never;
-  asChild?: never;
-}
+type NativeButtonProps = BaseButtonProps &
+  Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'>;
 
-interface ButtonLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement>, BaseButtonProps {
+type AnchorButtonProps = BaseButtonProps &
+  Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'children'> & {
   href: string;
-  asChild?: boolean;
-}
+};
 
-type ButtonComponentProps = ButtonProps | ButtonLinkProps;
+type ButtonComponentProps = NativeButtonProps | AnchorButtonProps;
+type ButtonRef = HTMLButtonElement | HTMLAnchorElement;
+
+const isLinkProps = (props: ButtonComponentProps): props is AnchorButtonProps => 'href' in props;
+const getDomProps = <T extends ButtonComponentProps>(props: T): Omit<T, keyof BaseButtonProps> => {
+  const {
+    variant: _variant,
+    size: _size,
+    className: _className,
+    children: _children,
+    ...domProps
+  } = props;
+  return domProps;
+};
 
 const getButtonClasses = (variant: ButtonVariant, size: ButtonSize, className?: string) => {
   const baseStyles =
@@ -46,27 +64,26 @@ const getButtonClasses = (variant: ButtonVariant, size: ButtonSize, className?: 
   return clsx(baseStyles, variants[variant], sizes[size], className);
 };
 
-export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonComponentProps>(
-  ({ variant = 'primary', size = 'md', className, children, ...props }, ref) => {
-    const classes = getButtonClasses(variant, size, className);
+export const Button = forwardRef<ButtonRef, ButtonComponentProps>((props, ref) => {
+  const { variant = 'primary', size = 'md', className, children } = props;
+  const classes = getButtonClasses(variant, size, className);
 
-    if ('href' in props && props.href) {
-      const { href, asChild, ...linkProps } = props as ButtonLinkProps;
-      return (
-        <Link href={href} className={classes} ref={ref as any} {...linkProps}>
-          {children}
-        </Link>
-      );
-    }
-
-    const { ...buttonProps } = props as ButtonProps;
+  if (isLinkProps(props)) {
+    const { href, ...linkProps } = getDomProps(props);
     return (
-      <button ref={ref as any} className={classes} {...buttonProps}>
+      <Link href={href} className={classes} ref={ref as Ref<HTMLAnchorElement>} {...linkProps}>
         {children}
-      </button>
+      </Link>
     );
   }
-);
+
+  const buttonProps = getDomProps(props);
+  return (
+    <button ref={ref as Ref<HTMLButtonElement>} className={classes} {...buttonProps}>
+      {children}
+    </button>
+  );
+});
 
 Button.displayName = 'Button';
 
