@@ -21,7 +21,7 @@ if (process.env.NODE_ENV !== 'production') {
       dotenv.config({ path: rootEnvPath });
       console.log('[Next Config] Carregando .env local de:', rootEnvPath);
     }
-  } catch (error) {
+  } catch {
     // Ignorar erros - no Render/Vercel não precisa carregar .env
     console.log('[Next Config] Usando variáveis de ambiente do sistema');
   }

@@ -269,10 +269,15 @@ function sanitizeHistory(history?: RawHistoryMessage[]): ConversationMessage[] {
 
   return history
     .filter((msg) => msg && typeof msg.content === 'string')
-    .map((msg) => ({
-      role: msg.role === 'assistant' || msg.role === 'system' ? msg.role : 'user',
-      content: (msg.content || '').trim(),
-    }))
+    .map((msg): ConversationMessage => {
+      const role = msg.role === 'assistant' || msg.role === 'system' 
+        ? (msg.role as 'assistant' | 'system')
+        : 'user';
+      return {
+        role,
+        content: (msg.content || '').trim(),
+      };
+    })
     .filter((msg) => msg.content.length > 0)
     .slice(-10);
 }
