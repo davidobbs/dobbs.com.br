@@ -33,9 +33,15 @@ type ConversationMessage = {
   content: string;
 };
 
+type ClientInfo = {
+  name: string;
+  area: string;
+};
+
 type ChatPayload = {
   message: string;
   conversationHistory: ConversationMessage[];
+  clientInfo?: ClientInfo;
 };
 
 type ChatSuccess = {
@@ -60,51 +66,62 @@ const JSON_HEADERS = {
   'Content-Type': 'application/json',
 };
 
-const SYSTEM_PROMPT = `Você é o assistente de IA do Davi Dobbs. Seu objetivo é ter conversas breves, interativas e aprender com cada usuário para melhorar suas respostas.
+const SYSTEM_PROMPT = `Você é o assistente de IA do Davi Dobbs. Seu OBJETIVO PRINCIPAL é direcionar a conversa para converter o usuário em uma consultoria com o Davi.
+
+MISSÃO: Guiar o usuário passo a passo, fazendo perguntas intencionais que levem naturalmente à indicação da consultoria do Davi.
 
 REGRAS DE OURO:
-1. **Seja BREVE**: Máximo 3-4 frases por resposta. Evite parágrafos longos.
-2. **Foque na INTERAÇÃO**: Faça perguntas de follow-up para entender melhor o que o usuário precisa.
-3. **APRENDA com o usuário**: Observe o tom, estilo e necessidades dele. Adapte suas respostas gradualmente.
-4. **Use FORMATO**: Quebre texto com quebras de linha. Use **negrito** para destacar pontos importantes.
+1. **SEMPRE DIRECIONE PARA CONSULTORIA**: Toda resposta deve, de forma natural, mencionar ou sugerir a consultoria do Davi
+2. **GUIE PASSO A PASSO**: Faça perguntas intencionais que descubram necessidades e dores do usuário
+3. **SEJA BREVE**: Máximo 3-4 frases por resposta. Evite parágrafos longos.
+4. **USE FORMATO**: Quebre texto com quebras de linha. Use **negrito** para destacar pontos importantes.
 
-SOBRE O DAVI (resumo):
+SOBRE O DAVI (use sempre para converter):
 - Engenheiro de Software especializado em IA aplicada
+- **Metodologias próprias que economizam tempo** - ele ensina a técnica, não apenas teoria
 - Consultoria prática: ensina pessoas a usar IA corretamente (não teoria genérica)
 - Foco: ferramentas certas, prompts eficientes, aplicação prática
 - Resultados: 50+ pessoas orientadas, 90% redução de erros
-- Stack: LLMs, agentes, RAG, TypeScript/Python/Go, React/Next.js, AWS/GCP, Docker/K8s
+- **Ele ensina a técnica** - você aprende a fazer, não apenas recebe a solução pronta
+
+ESTRATÉGIA DE CONVERSÃO:
+1. **Descubra a dor**: Faça perguntas sobre desafios, tempo perdido, erros recorrentes
+2. **Conecte com a solução**: Mostre como o Davi resolve exatamente isso
+3. **Destaque o diferencial**: Metodologias que economizam tempo + ele ensina a técnica
+4. **Crie urgência sutil**: Mencione tempo economizado, erros evitados
+5. **Sempre termine sugerindo**: Direcione para /contact ou contato@dobbs.com.br
 
 ESTILO DE COMUNICAÇÃO:
 - Amigável e descontraído, mas profissional
 - Respostas curtas e diretas (3-4 frases máximo)
-- Sempre faça uma pergunta de follow-up quando apropriado
+- **SEMPRE faça uma pergunta de follow-up** que descubra necessidades ou dores
 - Use português brasileiro natural
-- Aprenda o tom do usuário e adapte-se gradualmente
+- Seja proativo em guiar a conversa
 
 FORMATAÇÃO:
 - Use quebras de linha para separar ideias
-- **Negrito** para destacar pontos importantes
+- **Negrito** para destacar pontos importantes (metodologias, economia de tempo, ensina técnica)
 - Listas curtas quando necessário (máx 3 itens)
 - Evite blocos de texto grandes
 
-APRENDIZADO ADAPTATIVO:
-- Observe se o usuário prefere respostas técnicas ou simples
-- Note se ele quer detalhes ou apenas o essencial
-- Adapte o tom: mais formal se ele for formal, mais casual se ele for casual
-- Aprenda com perguntas anteriores para dar respostas mais assertivas
+EXEMPLOS DE PERGUNTAS INTENCIONAIS:
+- "Quanto tempo você gasta hoje com [tarefa relacionada à área do cliente]?"
+- "Você já teve problemas com [desafio comum na área]?"
+- "O que mais te frustra no seu trabalho atual relacionado a IA/automação?"
+- "Você prefere aprender a fazer ou ter alguém fazendo por você?"
 
-CONSULTORIA:
-- Explique brevemente: orientação prática personalizada para usar IA corretamente
-- Se perguntar sobre preços: direcione para /contact ou contato@dobbs.com.br
-- Sugira /about para mais detalhes quando apropriado
+SEMPRE MENCIONAR (quando relevante):
+- "O Davi tem metodologias que fazem você economizar tempo"
+- "Ele ensina a técnica, não apenas entrega a solução"
+- "Você aprende a fazer, não apenas recebe pronto"
+- "Metodologias práticas que reduzem erros em 90%"
 
-TECNOLOGIA:
-- Seja técnico mas acessível
-- Dê exemplos práticos breves
-- Se não souber, seja honesto e sugira onde encontrar
+DIRECIONAMENTO FINAL:
+- Sempre termine sugerindo conhecer mais sobre a consultoria
+- Direcione para /contact ou contato@dobbs.com.br
+- Crie interesse: "Quer saber como o Davi pode te ajudar especificamente na sua área?"
 
-Lembre-se: INTERAÇÃO > Informação. Melhor uma conversa curta e útil do que um monólogo longo.`;
+Lembre-se: CONVERSÃO > Informação. Guie a conversa intencionalmente para a consultoria.`;
 
 const FALLBACK_MESSAGE = (userMessage: string) => `Obrigado pela sua mensagem: "${userMessage}".
 
@@ -123,7 +140,7 @@ export async function POST(request: NextRequest) {
     console.log('[Chat API] Headers da requisição:', Object.fromEntries(request.headers.entries()));
     const startTime = Date.now();
     
-    let requestBody: { message?: string; conversationHistory?: RawHistoryMessage[] } | null = null;
+    let requestBody: { message?: string; conversationHistory?: RawHistoryMessage[]; clientInfo?: ClientInfo } | null = null;
 
     try {
       console.log('[Chat API] Parseando body da requisição...');
@@ -131,14 +148,15 @@ export async function POST(request: NextRequest) {
       console.log('[Chat API] Body parseado:', { 
         hasMessage: !!requestBody?.message,
         messageLength: requestBody?.message?.length,
-        historyLength: requestBody?.conversationHistory?.length 
+        historyLength: requestBody?.conversationHistory?.length,
+        hasClientInfo: !!requestBody?.clientInfo
       });
     } catch (error) {
       console.error('[Chat API] Erro ao parsear body:', error);
       return NextResponse.json({ error: { message: 'Corpo da requisição inválido' } }, { status: 400 });
     }
 
-    const { message, conversationHistory } = requestBody || {};
+    const { message, conversationHistory, clientInfo } = requestBody || {};
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       console.error('[Chat API] Mensagem inválida ou vazia');
@@ -152,6 +170,7 @@ export async function POST(request: NextRequest) {
     const payload: ChatPayload = {
       message: trimmedMessage,
       conversationHistory: sanitizedHistory,
+      clientInfo: clientInfo,
     };
 
     const backendUrl = getBackendUrl();
@@ -283,10 +302,17 @@ function sanitizeHistory(history?: RawHistoryMessage[]): ConversationMessage[] {
 }
 
 function buildMessages(payload: ChatPayload) {
+  // Adicionar contexto do cliente ao SYSTEM_PROMPT se disponível
+  let enhancedSystemPrompt = SYSTEM_PROMPT;
+  
+  if (payload.clientInfo) {
+    enhancedSystemPrompt += `\n\nCONTEXTO DO CLIENTE (use para personalizar e converter):\n- Nome: ${payload.clientInfo.name}\n- Área de atuação: ${payload.clientInfo.area}\n\nINSTRUÇÕES CRÍTICAS:\n- Use o nome do cliente (${payload.clientInfo.name}) quando apropriado para criar conexão pessoal\n- Adapte TODAS as perguntas e exemplos para a área de ${payload.clientInfo.area}\n- Descubra desafios específicos da área ${payload.clientInfo.area}\n- Conecte as dores da área ${payload.clientInfo.area} com as metodologias do Davi\n- Sempre mencione: "O Davi tem metodologias específicas para ${payload.clientInfo.area} que economizam tempo"\n- Enfatize: "Ele ensina a técnica aplicada em ${payload.clientInfo.area}"\n- Guie passo a passo: faça perguntas sobre desafios em ${payload.clientInfo.area}\n- Crie urgência: "Na sua área (${payload.clientInfo.area}), o Davi já ajudou pessoas a economizar X tempo"\n- Direcione intencionalmente: "Para ${payload.clientInfo.area}, a consultoria do Davi é especialmente valiosa porque..."\n\nOBJETIVO: Converter ${payload.clientInfo.name} (área: ${payload.clientInfo.area}) em consultoria, guiando a conversa passo a passo com perguntas intencionais sobre desafios na área dele.`;
+  }
+
   const messages: ConversationMessage[] = [
     {
       role: 'system',
-      content: SYSTEM_PROMPT,
+      content: enhancedSystemPrompt,
     },
     ...payload.conversationHistory,
     {
@@ -330,7 +356,8 @@ async function proxyToBackend(payload: ChatPayload, backendUrl: string): Promise
   console.log('[Chat API] Fazendo proxy para backend:', backendChatUrl);
   console.log('[Chat API] Payload sendo enviado:', { 
     messageLength: payload.message.length, 
-    historyLength: payload.conversationHistory.length 
+    historyLength: payload.conversationHistory.length,
+    hasClientInfo: !!payload.clientInfo
   });
 
   const controller = new AbortController();
@@ -473,7 +500,7 @@ async function callOpenRouter(payload: ChatPayload): Promise<OpenRouterResult> {
         model,
         messages,
         temperature: 0.8,
-        max_tokens: 500,
+        max_tokens: 1500, // Aumentado para garantir mensagens completas
       }),
       signal: controller.signal,
     });
@@ -487,11 +514,29 @@ async function callOpenRouter(payload: ChatPayload): Promise<OpenRouterResult> {
     }
 
     const data = await response.json();
-    const assistantMessage = data.choices?.[0]?.message?.content?.trim();
+    const choice = data.choices?.[0];
+    const assistantMessage = choice?.message?.content?.trim();
 
     if (!assistantMessage) {
+      console.error('[Chat API] Resposta vazia ou inválida do OpenRouter:', { 
+        hasChoices: !!data.choices,
+        choicesLength: data.choices?.length,
+        finishReason: choice?.finish_reason 
+      });
       return { type: 'error', status: 502, message: 'Resposta inválida do serviço de IA.' };
     }
+
+    // Verificar se a resposta foi cortada (finish_reason === 'length')
+    if (choice?.finish_reason === 'length') {
+      console.warn('[Chat API] Resposta pode ter sido cortada por limite de tokens. Mensagem recebida tem', assistantMessage.length, 'caracteres');
+      // Ainda retornamos a mensagem, mas logamos o aviso
+    }
+
+    console.log('[Chat API] Mensagem completa recebida:', { 
+      messageLength: assistantMessage.length,
+      finishReason: choice?.finish_reason,
+      tokensUsed: data.usage?.total_tokens 
+    });
 
     return {
       type: 'success',

@@ -27,7 +27,7 @@ export function FloatingChatButton() {
 
       {/* Modal do Chat */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-[90vw] sm:w-[400px] md:w-[500px] lg:w-[600px] h-[600px] md:h-[700px] transition-all duration-300">
+        <div className="fixed bottom-6 right-6 z-50 w-[90vw] sm:w-[400px] md:w-[500px] lg:w-[600px] max-w-[calc(100vw-3rem)] h-[600px] md:h-[700px] max-h-[calc(100vh-3rem)] transition-all duration-300">
           <div className="relative h-full flex flex-col bg-primary-100/50 backdrop-blur-sm rounded-xl border border-accent-500/20 shadow-2xl overflow-hidden">
             {/* Header do Modal */}
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary-100 to-primary-50/50 border-b border-accent-500/20 flex-shrink-0">

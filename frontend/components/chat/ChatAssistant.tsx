@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Message {
@@ -15,6 +15,13 @@ interface Message {
 interface ChatAssistantProps {
   className?: string;
 }
+
+interface ClientInfo {
+  name: string;
+  area: string;
+}
+
+const CLIENT_INFO_KEY = 'chat_client_info';
 
 // Função para formatar markdown básico de forma segura
 const formatMessage = (text: string): string => {
@@ -34,19 +41,51 @@ const formatMessage = (text: string): string => {
 };
 
 export function ChatAssistant({ className }: ChatAssistantProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: 'Oi! 👋 Sou o assistente de IA do Davi Dobbs. Estou aqui para ajudar você com dúvidas sobre IA aplicada, engenharia de software, consultoria ou qualquer coisa relacionada ao trabalho dele. O que você gostaria de saber?',
-      timestamp: new Date(),
-    },
-  ]);
+  // Estado de onboarding
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [clientInfo, setClientInfo] = useState<ClientInfo | null>(null);
+  const [onboardingData, setOnboardingData] = useState<ClientInfo>({
+    name: '',
+    area: '',
+  });
+  const [onboardingErrors, setOnboardingErrors] = useState<Partial<Record<keyof ClientInfo, string>>>({});
+
+  // Estado da conversa
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Carregar informações do cliente do localStorage na inicialização
+  useEffect(() => {
+    const storedInfo = localStorage.getItem(CLIENT_INFO_KEY);
+    if (storedInfo) {
+      try {
+        const parsed = JSON.parse(storedInfo) as ClientInfo;
+        if (parsed.name && parsed.area) {
+          setClientInfo(parsed);
+          setShowOnboarding(false);
+          // Iniciar conversa com mensagem empática e amigável
+          setMessages([
+            {
+              id: '1',
+              role: 'assistant',
+              content: `Oi! 👋 Que bom te ver novamente!\n\nComo você está hoje? Espero que esteja tudo bem!\n\nMe conta, ${parsed.name}, como tem sido seu trabalho na área de **${parsed.area}**? Está tudo correndo bem ou tem alguma coisa que está te consumindo muito tempo?`,
+              timestamp: new Date(),
+            },
+          ]);
+        } else {
+          setShowOnboarding(true);
+        }
+      } catch {
+        setShowOnboarding(true);
+      }
+    } else {
+      setShowOnboarding(true);
+    }
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -107,6 +146,7 @@ export function ChatAssistant({ className }: ChatAssistantProps) {
           body: JSON.stringify({
             message: userMessage.content,
             conversationHistory,
+            clientInfo: clientInfo || undefined,
           }),
           signal: controller.signal,
         });
@@ -242,6 +282,156 @@ export function ChatAssistant({ className }: ChatAssistantProps) {
       handleSend();
     }
   };
+
+  // Handlers do onboarding
+  const validateOnboarding = (): boolean => {
+    const errors: Partial<Record<keyof ClientInfo, string>> = {};
+    
+    if (!onboardingData.name.trim()) {
+      errors.name = 'Nome é obrigatório';
+    } else if (onboardingData.name.trim().length < 2) {
+      errors.name = 'Nome deve ter pelo menos 2 caracteres';
+    }
+
+    if (!onboardingData.area.trim()) {
+      errors.area = 'Área de atuação é obrigatória';
+    }
+
+    setOnboardingErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleOnboardingSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateOnboarding()) {
+      return;
+    }
+
+    const info: ClientInfo = {
+      name: onboardingData.name.trim(),
+      area: onboardingData.area.trim(),
+    };
+
+    // Salvar no localStorage
+    localStorage.setItem(CLIENT_INFO_KEY, JSON.stringify(info));
+    setClientInfo(info);
+    setShowOnboarding(false);
+
+    // Iniciar conversa com mensagem empática e amigável
+    setMessages([
+      {
+        id: '1',
+        role: 'assistant',
+        content: `Olá! 👋 Prazer em te conhecer!\n\nComo você está? Espero que esteja tudo bem por aí!\n\nMe conta, ${info.name}, como tem sido seu trabalho na área de **${info.area}**? Está tudo correndo bem ou tem alguma coisa que está te consumindo muito tempo?`,
+        timestamp: new Date(),
+      },
+    ]);
+  };
+
+  const handleSkipOnboarding = () => {
+    setShowOnboarding(false);
+    setMessages([
+      {
+        id: '1',
+        role: 'assistant',
+        content: 'Oi! 👋 Que bom você estar aqui!\n\nComo você está? Espero que esteja tudo bem!\n\nMe conta, qual é o seu nome? E o que te trouxe aqui hoje? Tem alguma coisa no seu trabalho que está te consumindo muito tempo ou te dando dor de cabeça?',
+        timestamp: new Date(),
+      },
+    ]);
+  };
+
+  // Se ainda não completou o onboarding, mostrar formulário
+  if (showOnboarding) {
+    return (
+      <div className={cn('flex flex-col h-full', className)}>
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-md mx-auto space-y-6">
+            <div className="text-center space-y-2">
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-accent-500/20 border border-accent-500/30 flex items-center justify-center">
+                  <Bot className="w-8 h-8 text-accent-500" />
+                </div>
+              </div>
+              <h3 className="text-xl font-bold text-neutral-50">
+                Bem-vindo ao Assistente de IA!
+              </h3>
+              <p className="text-sm text-neutral-400">
+                Para personalizar sua experiência e aumentar a conversão, preciso conhecer você melhor.
+              </p>
+            </div>
+
+            <form onSubmit={handleOnboardingSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Qual é o seu nome? <span className="text-accent-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={onboardingData.name}
+                  onChange={(e) =>
+                    setOnboardingData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="Seu nome"
+                  className="w-full px-4 py-3 rounded-lg bg-neutral-900/60 border border-neutral-700/50 text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-accent-500/50 focus:border-accent-500/50 transition-all"
+                  autoFocus
+                />
+                {onboardingErrors.name && (
+                  <p className="mt-1 text-xs text-red-400">{onboardingErrors.name}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">
+                  Qual é a sua área de atuação? <span className="text-accent-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={onboardingData.area}
+                  onChange={(e) =>
+                    setOnboardingData((prev) => ({ ...prev, area: e.target.value }))
+                  }
+                  placeholder="Ex: Direito, Tecnologia, Saúde, Vendas..."
+                  className="w-full px-4 py-3 rounded-lg bg-neutral-900/60 border border-neutral-700/50 text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-accent-500/50 focus:border-accent-500/50 transition-all"
+                />
+                {onboardingErrors.area && (
+                  <p className="mt-1 text-xs text-red-400">{onboardingErrors.area}</p>
+                )}
+                <p className="mt-1 text-xs text-neutral-500">
+                  Descreva brevemente sua área de trabalho ou setor
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="flex-1 flex items-center justify-center gap-2"
+                >
+                  Começar conversa
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSkipOnboarding}
+                className="w-full text-center text-xs text-neutral-500 hover:text-neutral-400 transition-colors"
+              >
+                Pular por enquanto
+              </button>
+            </form>
+
+            <div className="mt-6 p-4 bg-accent-500/10 border border-accent-500/20 rounded-lg">
+              <p className="text-xs text-neutral-400 text-center">
+                💡 <strong className="text-accent-400">Dica:</strong> Com essas informações, posso guiar você passo a passo para encontrar a melhor solução de IA para sua área!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('flex flex-col h-full', className)}>

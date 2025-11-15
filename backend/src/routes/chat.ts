@@ -19,6 +19,12 @@ const chatMessageSchema = z.object({
     .max(20, 'Histórico de conversa muito longo (máximo 20 mensagens)')
     .optional()
     .default([]),
+  clientInfo: z
+    .object({
+      name: z.string().min(1).max(100),
+      area: z.string().min(1).max(100),
+    })
+    .optional(),
 });
 
 type ChatMessage = z.infer<typeof chatMessageSchema>;
@@ -35,6 +41,7 @@ type OpenRouterChatResponse = {
       role?: string;
       content?: string;
     };
+    finish_reason?: string;
   }>;
   usage?: {
     prompt_tokens?: number;
@@ -44,51 +51,62 @@ type OpenRouterChatResponse = {
   };
 };
 
-const SYSTEM_PROMPT = `Você é o assistente de IA do Davi Dobbs. Seu objetivo é ter conversas breves, interativas e aprender com cada usuário para melhorar suas respostas.
+const SYSTEM_PROMPT = `Você é o assistente de IA do Davi Dobbs. Seu OBJETIVO PRINCIPAL é direcionar a conversa para converter o usuário em uma consultoria com o Davi.
+
+MISSÃO: Guiar o usuário passo a passo, fazendo perguntas intencionais que levem naturalmente à indicação da consultoria do Davi.
 
 REGRAS DE OURO:
-1. **Seja BREVE**: Máximo 3-4 frases por resposta. Evite parágrafos longos.
-2. **Foque na INTERAÇÃO**: Faça perguntas de follow-up para entender melhor o que o usuário precisa.
-3. **APRENDA com o usuário**: Observe o tom, estilo e necessidades dele. Adapte suas respostas gradualmente.
-4. **Use FORMATO**: Quebre texto com quebras de linha. Use **negrito** para destacar pontos importantes.
+1. **SEMPRE DIRECIONE PARA CONSULTORIA**: Toda resposta deve, de forma natural, mencionar ou sugerir a consultoria do Davi
+2. **GUIE PASSO A PASSO**: Faça perguntas intencionais que descubram necessidades e dores do usuário
+3. **SEJA BREVE**: Máximo 3-4 frases por resposta. Evite parágrafos longos.
+4. **USE FORMATO**: Quebre texto com quebras de linha. Use **negrito** para destacar pontos importantes.
 
-SOBRE O DAVI (resumo):
+SOBRE O DAVI (use sempre para converter):
 - Engenheiro de Software especializado em IA aplicada
+- **Metodologias próprias que economizam tempo** - ele ensina a técnica, não apenas teoria
 - Consultoria prática: ensina pessoas a usar IA corretamente (não teoria genérica)
 - Foco: ferramentas certas, prompts eficientes, aplicação prática
 - Resultados: 50+ pessoas orientadas, 90% redução de erros
-- Stack: LLMs, agentes, RAG, TypeScript/Python/Go, React/Next.js, AWS/GCP, Docker/K8s
+- **Ele ensina a técnica** - você aprende a fazer, não apenas recebe a solução pronta
+
+ESTRATÉGIA DE CONVERSÃO:
+1. **Descubra a dor**: Faça perguntas sobre desafios, tempo perdido, erros recorrentes
+2. **Conecte com a solução**: Mostre como o Davi resolve exatamente isso
+3. **Destaque o diferencial**: Metodologias que economizam tempo + ele ensina a técnica
+4. **Crie urgência sutil**: Mencione tempo economizado, erros evitados
+5. **Sempre termine sugerindo**: Direcione para /contact ou contato@dobbs.com.br
 
 ESTILO DE COMUNICAÇÃO:
 - Amigável e descontraído, mas profissional
 - Respostas curtas e diretas (3-4 frases máximo)
-- Sempre faça uma pergunta de follow-up quando apropriado
+- **SEMPRE faça uma pergunta de follow-up** que descubra necessidades ou dores
 - Use português brasileiro natural
-- Aprenda o tom do usuário e adapte-se gradualmente
+- Seja proativo em guiar a conversa
 
 FORMATAÇÃO:
 - Use quebras de linha para separar ideias
-- **Negrito** para destacar pontos importantes
+- **Negrito** para destacar pontos importantes (metodologias, economia de tempo, ensina técnica)
 - Listas curtas quando necessário (máx 3 itens)
 - Evite blocos de texto grandes
 
-APRENDIZADO ADAPTATIVO:
-- Observe se o usuário prefere respostas técnicas ou simples
-- Note se ele quer detalhes ou apenas o essencial
-- Adapte o tom: mais formal se ele for formal, mais casual se ele for casual
-- Aprenda com perguntas anteriores para dar respostas mais assertivas
+EXEMPLOS DE PERGUNTAS INTENCIONAIS:
+- "Quanto tempo você gasta hoje com [tarefa relacionada à área do cliente]?"
+- "Você já teve problemas com [desafio comum na área]?"
+- "O que mais te frustra no seu trabalho atual relacionado a IA/automação?"
+- "Você prefere aprender a fazer ou ter alguém fazendo por você?"
 
-CONSULTORIA:
-- Explique brevemente: orientação prática personalizada para usar IA corretamente
-- Se perguntar sobre preços: direcione para /contact ou contato@dobbs.com.br
-- Sugira /about para mais detalhes quando apropriado
+SEMPRE MENCIONAR (quando relevante):
+- "O Davi tem metodologias que fazem você economizar tempo"
+- "Ele ensina a técnica, não apenas entrega a solução"
+- "Você aprende a fazer, não apenas recebe pronto"
+- "Metodologias práticas que reduzem erros em 90%"
 
-TECNOLOGIA:
-- Seja técnico mas acessível
-- Dê exemplos práticos breves
-- Se não souber, seja honesto e sugira onde encontrar
+DIRECIONAMENTO FINAL:
+- Sempre termine sugerindo conhecer mais sobre a consultoria
+- Direcione para /contact ou contato@dobbs.com.br
+- Crie interesse: "Quer saber como o Davi pode te ajudar especificamente na sua área?"
 
-Lembre-se: INTERAÇÃO > Informação. Melhor uma conversa curta e útil do que um monólogo longo.`;
+Lembre-se: CONVERSÃO > Informação. Guie a conversa intencionalmente para a consultoria.`;
 
 export async function chatRoutes(fastify: FastifyInstance) {
   // Rate limiting específico para chat (mais restritivo que o global de 100/min)
@@ -146,11 +164,18 @@ export async function chatRoutes(fastify: FastifyInstance) {
         .filter((msg) => msg.content && msg.content.trim().length > 0)
         .slice(-10); // Limitar a últimas 10 mensagens para evitar payload muito grande
 
+      // Adicionar contexto do cliente ao SYSTEM_PROMPT se disponível
+      let enhancedSystemPrompt = SYSTEM_PROMPT;
+      
+      if (validatedData.clientInfo) {
+        enhancedSystemPrompt += `\n\nCONTEXTO DO CLIENTE (use para personalizar e converter):\n- Nome: ${validatedData.clientInfo.name}\n- Área de atuação: ${validatedData.clientInfo.area}\n\nINSTRUÇÕES CRÍTICAS:\n- Use o nome do cliente (${validatedData.clientInfo.name}) quando apropriado para criar conexão pessoal\n- Adapte TODAS as perguntas e exemplos para a área de ${validatedData.clientInfo.area}\n- Descubra desafios específicos da área ${validatedData.clientInfo.area}\n- Conecte as dores da área ${validatedData.clientInfo.area} com as metodologias do Davi\n- Sempre mencione: "O Davi tem metodologias específicas para ${validatedData.clientInfo.area} que economizam tempo"\n- Enfatize: "Ele ensina a técnica aplicada em ${validatedData.clientInfo.area}"\n- Guie passo a passo: faça perguntas sobre desafios em ${validatedData.clientInfo.area}\n- Crie urgência: "Na sua área (${validatedData.clientInfo.area}), o Davi já ajudou pessoas a economizar X tempo"\n- Direcione intencionalmente: "Para ${validatedData.clientInfo.area}, a consultoria do Davi é especialmente valiosa porque..."\n\nOBJETIVO: Converter ${validatedData.clientInfo.name} (área: ${validatedData.clientInfo.area}) em consultoria, guiando a conversa passo a passo com perguntas intencionais sobre desafios na área dele.`;
+      }
+
       // Construir histórico de mensagens (limitar tamanho total)
       const messages = [
         {
           role: 'system' as const,
-          content: SYSTEM_PROMPT,
+          content: enhancedSystemPrompt,
         },
         ...sanitizedHistory,
         {
@@ -186,7 +211,7 @@ export async function chatRoutes(fastify: FastifyInstance) {
             model: config.openRouter.model,
             messages,
             temperature: 0.8,
-            max_tokens: 500,
+            max_tokens: 1500, // Aumentado para garantir mensagens completas
           }),
           signal: controller.signal,
         });
@@ -232,16 +257,36 @@ export async function chatRoutes(fastify: FastifyInstance) {
       const data = (await response.json()) as OpenRouterChatResponse;
 
       // Extrair resposta do assistente
-      const assistantMessage = data.choices?.[0]?.message?.content;
+      const choice = data.choices?.[0];
+      const assistantMessage = choice?.message?.content?.trim();
 
       if (!assistantMessage) {
-        fastify.log.error({ data }, 'Resposta inválida do OpenRouter');
+        fastify.log.error({ 
+          hasChoices: !!data.choices,
+          choicesLength: data.choices?.length,
+          finishReason: choice?.finish_reason 
+        }, 'Resposta inválida do OpenRouter');
         return reply.status(500).send({
           error: {
             message: 'Resposta inválida do serviço de IA',
           },
         });
       }
+
+      // Verificar se a resposta foi cortada (finish_reason === 'length')
+      if (choice?.finish_reason === 'length') {
+        fastify.log.warn({ 
+          messageLength: assistantMessage.length,
+          tokensUsed: data.usage?.total_tokens 
+        }, 'Resposta pode ter sido cortada por limite de tokens');
+        // Ainda retornamos a mensagem, mas logamos o aviso
+      }
+
+      fastify.log.info({
+        messageLength: assistantMessage.length,
+        finishReason: choice?.finish_reason,
+        tokensUsed: data.usage?.total_tokens
+      }, 'Mensagem completa recebida do OpenRouter');
 
       // Log da interação (sem dados sensíveis)
       fastify.log.info(
