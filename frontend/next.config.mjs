@@ -8,7 +8,7 @@ import { existsSync } from 'fs';
 import { createRequire } from 'module';
 
 // Carrega .env apenas em desenvolvimento local
-// No Vercel, as variáveis vêm automaticamente do process.env (configuradas no painel)
+// No Render/Vercel, as variáveis vêm automaticamente do process.env (configuradas no painel)
 if (process.env.NODE_ENV !== 'production') {
   try {
     const require = createRequire(import.meta.url);
@@ -22,12 +22,13 @@ if (process.env.NODE_ENV !== 'production') {
       console.log('[Next Config] Carregando .env local de:', rootEnvPath);
     }
   } catch (error) {
-    // Ignorar erros - no Vercel não precisa carregar .env
+    // Ignorar erros - no Render/Vercel não precisa carregar .env
     console.log('[Next Config] Usando variáveis de ambiente do sistema');
   }
 }
 
 console.log('[Next Config] OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'Configurada' : 'NÃO CONFIGURADA');
+console.log('[Next Config] Ambiente:', process.env.NODE_ENV || 'development');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

@@ -1,0 +1,51 @@
+services:
+  # Frontend Next.js
+  - type: web
+    name: dobbs-blog-frontend
+    env: node
+    plan: starter
+    region: oregon
+    buildCommand: cd frontend && npm install && npm run build
+    startCommand: cd frontend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openai/gpt-4o-mini
+        required: false
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+    healthCheckPath: /
+    autoDeploy: true
+
+  # Backend Fastify (opcional - se quiser hospedar o backend também)
+  - type: web
+    name: dobbs-blog-backend
+    env: node
+    plan: starter
+    region: oregon
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openai/gpt-4o-mini
+        required: false
+      - key: CORS_ORIGINS
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
+

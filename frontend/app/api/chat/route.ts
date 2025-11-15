@@ -4,7 +4,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 
-// Carrega .env apenas em desenvolvimento local (no Vercel as variáveis vêm do process.env automaticamente)
+// Carrega .env apenas em desenvolvimento local (no Render/Vercel as variáveis vêm do process.env automaticamente)
 if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
   try {
     const require = createRequire(import.meta.url);
@@ -17,9 +17,9 @@ if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
       dotenv.config({ path: rootEnvPath });
       console.log('[Chat API] Carregando .env local de:', rootEnvPath);
     }
-  } catch (error) {
-    // Ignorar erros de carregamento de .env (no Vercel não é necessário)
-    console.log('[Chat API] Usando variáveis de ambiente do sistema (Vercel/produção)');
+  } catch {
+    // Ignorar erros de carregamento de .env (no Render/Vercel não é necessário)
+    console.log('[Chat API] Usando variáveis de ambiente do sistema (Render/Vercel/produção)');
   }
 }
 
@@ -411,7 +411,7 @@ async function proxyToBackend(payload: ChatPayload, backendUrl: string): Promise
 }
 
 async function callOpenRouter(payload: ChatPayload): Promise<OpenRouterResult> {
-  // No Vercel, as variáveis vêm diretamente do process.env (configuradas no painel)
+  // No Render/Vercel, as variáveis vêm diretamente do process.env (configuradas no painel)
   // Em desenvolvimento local, tentar carregar do .env se necessário
   let apiKey = process.env.OPENROUTER_API_KEY;
   
@@ -427,8 +427,8 @@ async function callOpenRouter(payload: ChatPayload): Promise<OpenRouterResult> {
       dotenv.config({ path: rootEnvPath });
       apiKey = process.env.OPENROUTER_API_KEY;
       console.log('[Chat API] Recarregando .env local');
-    } catch (error) {
-      // Ignorar erros - no Vercel não precisa carregar .env
+    } catch {
+      // Ignorar erros - no Render/Vercel não precisa carregar .env
       console.log('[Chat API] Usando variáveis do sistema');
     }
   }
