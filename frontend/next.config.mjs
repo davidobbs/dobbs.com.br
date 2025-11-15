@@ -4,14 +4,29 @@ import rehypeSlug from 'rehype-slug';
 import rehypeAutolinkHeadings from 'rehype-autolink-headings';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+import { existsSync } from 'fs';
+import { createRequire } from 'module';
 
-// Carrega .env da raiz do monorepo (um nível acima de frontend/)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const rootEnvPath = resolve(__dirname, '..', '.env');
-dotenv.config({ path: rootEnvPath });
-console.log('[Next Config] Carregando .env de:', rootEnvPath);
+// Carrega .env apenas em desenvolvimento local
+// No Vercel, as variáveis vêm automaticamente do process.env (configuradas no painel)
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    const require = createRequire(import.meta.url);
+    const dotenv = require('dotenv');
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    const rootEnvPath = resolve(__dirname, '..', '.env');
+    
+    if (existsSync(rootEnvPath)) {
+      dotenv.config({ path: rootEnvPath });
+      console.log('[Next Config] Carregando .env local de:', rootEnvPath);
+    }
+  } catch (error) {
+    // Ignorar erros - no Vercel não precisa carregar .env
+    console.log('[Next Config] Usando variáveis de ambiente do sistema');
+  }
+}
+
 console.log('[Next Config] OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? 'Configurada' : 'NÃO CONFIGURADA');
 
 /** @type {import('next').NextConfig} */

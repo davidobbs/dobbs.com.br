@@ -1,25 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dotenv from 'dotenv';
+import { createRequire } from 'module';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 
-// Carrega .env da raiz do monorepo (garantir que está disponível no runtime)
-if (typeof window === 'undefined') {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  // Caminho relativo: de frontend/app/api/chat/route.ts para raiz do projeto
-  // route.ts está em: frontend/app/api/chat/
-  // Para chegar na raiz: ../../../../ (4 níveis acima)
-  const rootEnvPath = resolve(__dirname, '../../../../.env');
-  const result = dotenv.config({ path: rootEnvPath });
-  console.log('[Chat API] Carregando .env de:', rootEnvPath);
-  console.log('[Chat API] Arquivo .env existe?', existsSync(rootEnvPath));
-  console.log('[Chat API] Resultado do dotenv:', result.error ? 'ERRO: ' + result.error.message : 'OK');
-  if (result.parsed) {
-    console.log('[Chat API] Variáveis carregadas:', Object.keys(result.parsed).filter(k => k.includes('OPENROUTER') || k.includes('NEXT_PUBLIC')));
+// Carrega .env apenas em desenvolvimento local (no Vercel as variáveis vêm do process.env automaticamente)
+if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
+  try {
+    const require = createRequire(import.meta.url);
+    const dotenv = require('dotenv');
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    // Tentar carregar .env da raiz do monorepo (apenas localmente)
+    const rootEnvPath = resolve(__dirname, '../../../../.env');
+    if (existsSync(rootEnvPath)) {
+      dotenv.config({ path: rootEnvPath });
+      console.log('[Chat API] Carregando .env local de:', rootEnvPath);
+    }
+  } catch (error) {
+    // Ignorar erros de carregamento de .env (no Vercel não é necessário)
+    console.log('[Chat API] Usando variáveis de ambiente do sistema (Vercel/produção)');
   }
-  console.log('[Chat API] OPENROUTER_API_KEY após carregar .env:', process.env.OPENROUTER_API_KEY ? `Configurada (tamanho: ${process.env.OPENROUTER_API_KEY.length})` : 'NÃO CONFIGURADA');
 }
 
 type RawHistoryMessage = {
@@ -410,17 +411,26 @@ async function proxyToBackend(payload: ChatPayload, backendUrl: string): Promise
 }
 
 async function callOpenRouter(payload: ChatPayload): Promise<OpenRouterResult> {
-  // Tentar carregar novamente o .env se necessário
+  // No Vercel, as variáveis vêm diretamente do process.env (configuradas no painel)
+  // Em desenvolvimento local, tentar carregar do .env se necessário
   let apiKey = process.env.OPENROUTER_API_KEY;
   
-  if (!apiKey) {
-    // Tentar carregar do .env da raiz novamente
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const rootEnvPath = resolve(__dirname, '../../../../.env');
-    const result = dotenv.config({ path: rootEnvPath });
-    apiKey = process.env.OPENROUTER_API_KEY;
-    console.log('[Chat API] Tentativa de recarregar .env:', result.error ? 'ERRO: ' + result.error.message : 'OK');
+  if (!apiKey && process.env.NODE_ENV !== 'production') {
+    // Apenas em desenvolvimento local, tentar carregar do .env
+    try {
+      const { createRequire } = await import('module');
+      const require = createRequire(import.meta.url);
+      const dotenv = require('dotenv');
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = dirname(__filename);
+      const rootEnvPath = resolve(__dirname, '../../../../.env');
+      dotenv.config({ path: rootEnvPath });
+      apiKey = process.env.OPENROUTER_API_KEY;
+      console.log('[Chat API] Recarregando .env local');
+    } catch (error) {
+      // Ignorar erros - no Vercel não precisa carregar .env
+      console.log('[Chat API] Usando variáveis do sistema');
+    }
   }
 
   console.log('[Chat API] Verificando OPENROUTER_API_KEY:', apiKey ? 'Configurada (tamanho: ' + apiKey.length + ')' : 'NÃO CONFIGURADA');
